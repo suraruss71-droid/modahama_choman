@@ -357,7 +357,6 @@
                     lastSeen: Date.now()
                 });
 
-                // بەستنەوە بە هەردوو ئیڤێنتی سەر سێرڤەر بۆ دڵنیابوون لە گەیشتنی SOS
                 socket.emit('sosAlert', {
                     sender: currentUnitName,
                     time: new Date().toLocaleTimeString()
@@ -382,7 +381,6 @@
             addMessageToInbox(data.sender, data.text, 'normal');
         });
 
-        // وەرگرتنی ئامانجی فەرماندە بە هەردوو ناوەکەی سێرڤەر
         const handleCommanderTarget = (data) => {
             if (targetMarker) map.removeLayer(targetMarker);
             targetMarker = L.marker([data.lat, data.lon], {
@@ -396,7 +394,6 @@
         socket.on('update_commander_target', handleCommanderTarget);
         socket.on('set_commander_target', handleCommanderTarget);
 
-        // وەرگرتنی دەنگ لە سێرڤەرەوە
         socket.on('receive_voice_stream', (audioChunk) => {
             const blob = new Blob([audioChunk], { type: 'audio/webm' });
             const audioUrl = URL.createObjectURL(blob);
