@@ -5,8 +5,7 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
 
-// پێشاندانی فایلەکان لە فۆڵدەری سەرەکی 📁
-app.use(express.static(__dirname));
+// پێشاندانی فایلەکان لە فۆڵدەری سەرەکی 📁[span_1](start_span)[span_1](end_span) app.use(express.static(__dirname));
 
 // لیستێک بۆ هەڵگرتنی زانیاری هێزەکان 📊
 let units = {};
@@ -19,7 +18,13 @@ io.on('connection', (socket) => {
     // ١. تۆمارکردن و پشکنینی کلیلی ئەلفا 🔑
     socket.on('register_alpha', (data) => {
         if (VALID_KEYS.includes(data.apiKey)) {
-            socket.alphaName = data.apiKey; // کلیلەکە دەبێتە ناوی یەکە
+            socket.alphaName = data.apiKey;
+            
+            // دابەشکردنی ژووری تیم بۆ هەر ٤ کەسێک 🎙️
+            let num = parseInt(data.apiKey.replace("Alpha ", "")) || 1;
+            let squadRoom = "Squad_Team_" + Math.ceil(num / 4);
+            socket.join(squadRoom);
+
             units[socket.alphaName] = {
                 id: socket.alphaName,
                 lat: null,
@@ -60,17 +65,12 @@ io.on('connection', (socket) => {
         io.emit('receiveMessage', data);
     });
 
-    // ٤. ناردنی شوێنی دەستنیشانکراوی فەرماندە بۆ نەخشەی ئەلفاکان 🎯
+    // ٤. ناردنی شوێنی دەستنیشانکراوی فەرماندە 🎯
     socket.on('president_target_location', (targetData) => {
         io.emit('update_commander_target', targetData);
     });
 
-    // ٥. ناردنی فەرمانی گشتی 📢
-    socket.on('presidentBroadcast', (data) => {
-        io.emit('receiveMessage', data);
-    });
-
-    // ٦. کاتی پچڕانی پەیوەندی 🔴
+    // ٥. کاتی پچڕانی پەیوەندی 🔴
     socket.on('disconnect', () => {
         if (socket.alphaName && units[socket.alphaName]) {
             delete units[socket.alphaName];
