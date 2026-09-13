@@ -318,7 +318,8 @@
                         }
                     };
                     
-                    mediaRecorder.start(500);
+                    // چاکسازی: کەمکردن بۆ 250 ملیسانیە بۆ ئەوەی دەنگی ئەلفا بە خێرایی و بێ پچڕان بڕوات
+                    mediaRecorder.start(250);
                     isMicOn = true;
                     btn.innerText = "🎙️ بێسیم: ON";
                     btn.classList.add('active');
@@ -394,6 +395,7 @@
         socket.on('update_commander_target', handleCommanderTarget);
         socket.on('set_commander_target', handleCommanderTarget);
 
+        // وەرگرتنی دەنگ لە سێرڤەرەوە بە شێوازێکی خێرا و کارا
         socket.on('receive_voice_stream', (audioChunk) => {
             const blob = new Blob([audioChunk], { type: 'audio/webm' });
             const audioUrl = URL.createObjectURL(blob);
