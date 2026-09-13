@@ -103,6 +103,12 @@
             padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
         }
 
+        .volume-box {
+            background: rgba(2, 6, 23, 0.9); border: 1px solid var(--panel-border);
+            padding: 6px; border-radius: 6px; margin-bottom: 6px; font-size: 11px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+
         .search-coord-box {
             background: rgba(2, 6, 23, 0.9); border: 1px solid var(--panel-border);
             padding: 6px; border-radius: 6px; margin-bottom: 6px;
@@ -241,6 +247,11 @@
 
             <button class="btn btn-mic" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ مایکرۆفۆن: کوژاوە (Muted)</button>
 
+            <div class="volume-box">
+                <label for="volumeSlider">🔊 ئاستی دەنگ:</label>
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="1" onchange="changeVolume(this.value)">
+            </div>
+
             <div class="search-coord-box">
                 <input type="text" id="coordSearchInput" class="search-input" placeholder="سێرچ بە کۆد/MGRS (نموونە: 38SMF 47237)">
                 <button class="btn" style="padding: 4px;" onclick="searchByCoord()">بەدوای کۆدەکەدا گەڕان و دیاریکردن</button>
@@ -281,6 +292,21 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
+        async function requestPermissions() {
+            try {
+                await navigator.mediaDevices.getUserMedia({ audio: true });
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => console.log("📍 لوکەیشن چالاکە"),
+                        (err) => console.warn("تکایە لوکەیشن چالاک بکە")
+                    );
+                }
+            } catch (err) {
+                console.warn("مۆڵەتی مایکرۆفۆن یان لوکەیشن نەدراوە");
+            }
+        }
+        window.onload = requestPermissions;
+
         function verifyCommander() {
             const pass = document.getElementById('authPass').value;
             if(pass === 'Choman') {
@@ -292,20 +318,21 @@
             }
         }
 
-        // بەستنەوەی ڕاست بە ژینگەی سێرڤەرەوە
         const socket = io();
         
         const map = L.map('map', { zoomControl: false }).setView([36.6197, 44.4105], 15);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 20,
+            maxZoom: 22,
+            maxNativeZoom: 18,
             subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
             attribution: 'Map data &copy; Esri & Contributors'
         }).addTo(map);
 
         L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 20,
+            maxZoom: 22,
+            maxNativeZoom: 18,
             opacity: 0.85
         }).addTo(map);
 
@@ -316,6 +343,13 @@
 
         let micActive = false;
         let localAudioStream = null;
+
+        function changeVolume(val) {
+            const audioElements = document.querySelectorAll('audio');
+            audioElements.forEach(audio => {
+                audio.volume = val;
+            });
+        }
 
         async function toggleMicrophone() {
             const micBtn = document.getElementById('micToggleBtn');
@@ -495,6 +529,22 @@
                 <div class="msg-item ${isSos ? 'sos' : ''}">
                     <b>${data.sender}:</b> ${data.text}<br>
                     <span style="font-size: 9px; color: #9ca3af;">${new Date().toLocaleTimeString()}</span>
+                </div>
+            `;
+            
+            msgBox.innerHTML = htmlContent + msgBox.innerHTML;
+            modalMsgBox.innerHTML = htmlContent + modalMsgBox.innerHTML;
+            document.getElementById('msgBadgeCount').style.display = 'flex';
+        });
+
+        socket.on('receiveSOS', (data) => {
+            const msgBox = document.getElementById('messagesList');
+            const modalMsgBox = document.getElementById('modalMessagesList');
+            
+            let htmlContent = `
+                <div class="msg-item sos">
+                    <b>🚨 هاواری بەپەلە (SOS):</b> لەلایەن ${data.sender || 'ئەلفا'} نێردرا!<br>
+                    <span style="font-size: 9px; color: #fca5a5;">کات: ${data.time || new Date().toLocaleTimeString()}</span>
                 </div>
             `;
             
