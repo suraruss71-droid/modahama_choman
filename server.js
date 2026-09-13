@@ -5,10 +5,8 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
 
-// پێشاندانی فایلەکان لە فۆڵدەری سەرەکی 📁
 app.use(express.static(__dirname));
 
-// ڕێڕەوی ڕاستەوخۆ بۆ دڵنیابوون لە کارکردنی فایلەکان 🌐
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
@@ -21,6 +19,7 @@ let units = {};
 const VALID_KEYS = Array.from({ length: 30 }, (_, i) => `Alpha ${i + 1}`);
 
 io.on('connection', (socket) => {
+    
     socket.on('register_alpha', (data) => {
         if (VALID_KEYS.includes(data.apiKey)) {
             socket.alphaName = data.apiKey;
@@ -54,6 +53,11 @@ io.on('connection', (socket) => {
         }
     });
 
+    // چارەسەرکردنی ناردنی پەیامی فەرماندە بۆ گشت هێزەکان 📡
+    socket.on('presidentBroadcast', (data) => {
+        io.emit('receiveMessage', data);
+    });
+
     socket.on('sendEmergencyMessage', (data) => {
         if (units[data.sender]) {
             units[data.sender].status = 'SOS';
@@ -64,6 +68,11 @@ io.on('connection', (socket) => {
 
     socket.on('president_target_location', (targetData) => {
         io.emit('update_commander_target', targetData);
+    });
+
+    // پەیوەندی دەنگی (WebRTC Signaling) 🎙️
+    socket.on('voice_signal', (data) => {
+        io.emit('voice_signal', data);
     });
 
     socket.on('disconnect', () => {
