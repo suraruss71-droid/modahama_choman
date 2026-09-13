@@ -3,46 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ئەلفا - مۆبایلی مەیدانی</title>
+    <title>هێزی ئەلفا - ئۆپراسیۆنی مەیدانی</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { font-family: Tahoma, sans-serif; background: #030712; color: #fff; text-align: center; padding: 20px; }
-        .box { background: #0b132b; border: 1px solid #1e293b; padding: 20px; border-radius: 8px; max-width: 400px; margin: auto; }
-        .btn { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 10px; width: 100%; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
+        body { background: #030712; color: #00ffcc; overflow-x: hidden; }
+
+        /* بکگراوندی ڤیدیۆیی 🎥 */
+        #bg-video {
+            position: fixed; right: 0; bottom: 0; min-width: 100%; min-height: 100%;
+            z-index: -2; object-fit: cover; filter: brightness(0.25) contrast(1.2);
+        }
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(3, 7, 18, 0.85); z-index: -1;
+        }
+
+        /* شاشەی لۆگین 🔒 */
+        #login-screen {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100vh; padding: 20px;
+        }
+        .login-box {
+            background: rgba(11, 19, 43, 0.95); border: 1px solid #1e293b; padding: 25px;
+            border-radius: 8px; max-width: 400px; width: 100%; text-align: center;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.1);
+        }
+        .input-group { margin-bottom: 15px; text-align: right; }
+        .input-group input {
+            width: 100%; padding: 10px; margin-top: 5px; background: #020617;
+            border: 1px solid #1e293b; color: #fff; border-radius: 4px; box-sizing: border-box;
+        }
+
+        /* شاشەی سەرەکی 📱 */
+        #main-app { display: none; padding: 15px; max-width: 500px; margin: auto; }
+        .header-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(11, 19, 43, 0.9); border: 1px solid #1e293b; padding: 12px;
+            border-radius: 8px; margin-bottom: 15px;
+        }
+        #map { height: 280px; border-radius: 8px; border: 1px solid #1e293b; margin-bottom: 15px; }
+
+        /* دوگمەکان 🔘 */
+        .btn { background: #3b82f6; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer; font-size: 15px; margin-bottom: 10px; width: 100%; font-weight: bold; }
         .btn-sos { background: #ef4444; }
-        input { width: 100%; padding: 8px; margin: 10px 0; background: #020617; border: 1px solid #1e293b; color: #fff; border-radius: 4px; box-sizing: border-box; }
+        .btn-mic { background: #1e293b; color: #00ffcc; border: 1px solid #3b82f6; }
+        .btn-mic.active { background: #f59e0b; color: #000; border-color: #f59e0b; }
+        .status-msg { margin-top: 10px; color: #ef4444; font-size: 13px; }
     </style>
 </head>
 <body>
-    <div class="box">
-        <h2>🛡️ بەشی هێزی مەیدانی (ئەلفا)</h2>
-        <p>ناوی یەکە یان کۆدی خۆت بنووسە:</p>
-        <input type="text" id="unitIdInput" value="Alpha 1" placeholder="نموونە: Alpha 1">
-        <button class="btn" onclick="startSendingLocation()">دەستپێکردنی ناردنی شوێن (Live)</button>
-        <button class="btn btn-sos" onclick="sendSosSignal()">🚨 ناردنی نیشانەی مەترسی (SOS)</button>
-        <p id="statusText" style="margin-top: 15px; font-size: 13px; color: #10b981;"></p>
+
+    <video autoplay muted loop id="bg-video">
+        <source src="https://assets.mixkit.co/videos/preview/mixkit-abstract-technology-grid-loop-31804-large.mp4" type="video/mp4">
+    </video>
+    <div class="overlay"></div>
+
+    <!-- شاشەی چوونەژوورەوە -->
+    <div id="login-screen">
+        <div class="login-box">
+            <h2>🛡️ چوونەژوورەوەی ئەلفا</h2>
+            <div class="input-group">
+                <label>کلیل یان ناوی یەکە (نموونە: Alpha 1):</label>
+                <input type="text" id="api-key-input" placeholder="Alpha 1">
+            </div>
+            <button class="btn" onclick="login()">چوونەژوورەوە 🔑</button>
+            <div id="login-error" class="status-msg"></div>
+        </div>
     </div>
 
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <!-- شاشەی کارگێڕیی مەیدانی -->
+    <div id="main-app">
+        <div class="header-bar">
+            <div>یەکە: <span id="unit-name-display" style="color:#10b981;">-</span></div>
+            <button id="mic-btn" class="btn btn-mic" style="width: auto; margin:0;" onclick="toggleMic()">🎙️ بێسیم: OFF</button>
+        </div>
+
+        <div id="map"></div>
+
+        <button class="btn" onclick="startGPS()">📍 دەستپێکردنی ناردنی شوێن (Live)</button>
+        <button class="btn btn-sos" onclick="sendSOS()">🚨 ناردنی نیشانەی مەترسی (SOS)</button>
+        <p id="statusText" style="margin-top: 10px; font-size: 13px; color: #10b981;"></p>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let watchId = null;
+        let map, userMarker, targetMarker;
+        let isMicOn = false;
+        let currentUnitName = "";
 
-        function startSendingLocation() {
-            let unitId = document.getElementById('unitIdInput').value || 'Alpha 1';
-            if (!navigator.geolocation) {
-                alert('گەرۆک (GPS) پشتگیری ناکرێت لەم ئامێرەدا.');
-                return;
+        function login() {
+            const key = document.getElementById('api-key-input').value.trim();
+            if (!key) return;
+            socket.emit('register_alpha', { apiKey: key });
+        }
+
+        socket.on('registration_status', (res) => {
+            if (res.success) {
+                currentUnitName = res.alphaName;
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('main-app').style.display = 'block';
+                document.getElementById('unit-name-display').innerText = currentUnitName;
+                initMap();
+                requestLocationPermission();
+            } else {
+                document.getElementById('login-error').innerText = res.message || 'کلیلی سەربازی هەڵەیە!';
             }
+        });
 
+        function initMap() {
+            map = L.map('map').setView([36.19, 44.01], 14);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+        }
+
+        function requestLocationPermission() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((pos) => {
+                    startGPS();
+                }, (err) => {
+                    alert("پێویستە ڕێگە بە لۆکەیشن بدەیت تا سیستەمەکە کار بکات ⚠️");
+                }, { enableHighAccuracy: true });
+            }
+        }
+
+        function startGPS() {
+            if (!navigator.geolocation) return;
             document.getElementById('statusText').innerText = "پەیوەندی بە ژووری ئۆپەراسیۆنەوە کرا، شوێن دەنێردرێت...";
-
-            watchId = navigator.geolocation.watchPosition((position) => {
+            
+            navigator.geolocation.watchPosition((position) => {
                 let lat = position.coords.latitude;
                 let lon = position.coords.longitude;
                 let heading = position.coords.heading || 0;
 
+                if (!userMarker) {
+                    userMarker = L.marker([lat, lon]).addTo(map).bindPopup(currentUnitName).openPopup();
+                } else {
+                    userMarker.setLatLng([lat, lon]);
+                }
+                map.setView([lat, lon], 16);
+
                 socket.emit('updateLocation', {
-                    id: unitId,
+                    id: currentUnitName,
                     lat: lat,
                     lon: lon,
                     heading: heading,
@@ -53,11 +156,29 @@
             }, { enableHighAccuracy: true });
         }
 
-        function sendSosSignal() {
-            let unitId = document.getElementById('unitIdInput').value || 'Alpha 1';
+        function toggleMic() {
+            isMicOn = !isMicOn;
+            const btn = document.getElementById('mic-btn');
+            if (isMicOn) {
+                btn.innerText = "🎙️ بێسیم: ON";
+                btn.classList.add('active');
+            } else {
+                btn.innerText = "🎙️ بێسیم: OFF";
+                btn.classList.remove('active');
+            }
+        }
+
+        socket.on('update_commander_target', (data) => {
+            if (targetMarker) map.removeLayer(targetMarker);
+            targetMarker = L.marker([data.lat, data.lon], {
+                icon: L.divIcon({ className: 'custom-target', html: '🎯', iconSize: [30, 30] })
+            }).addTo(map).bindPopup("ئامانجی فەرماندەیی").openPopup();
+        });
+
+        function sendSOS() {
             navigator.geolocation.getCurrentPosition((position) => {
                 socket.emit('updateLocation', {
-                    id: unitId,
+                    id: currentUnitName,
                     lat: position.coords.latitude,
                     lon: position.coords.longitude,
                     heading: 0,
