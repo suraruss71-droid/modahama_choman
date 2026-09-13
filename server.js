@@ -5,8 +5,10 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
 
+// پێشاندانی فایلەکان لە فۆڵدەری سەرەکی 📁
 app.use(express.static(__dirname));
 
+// ڕێڕەوی ڕاستەوخۆ بۆ دڵنیابوون لە کارکردنی فایلەکان 🌐
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
@@ -19,7 +21,9 @@ let units = {};
 const VALID_KEYS = Array.from({ length: 30 }, (_, i) => `Alpha ${i + 1}`);
 
 io.on('connection', (socket) => {
-    
+    console.log('⚡ ئامێرێکی نوێ بەستراوەتەوە:', socket.id);
+
+    // 🎖️ ١. تۆمارکردنی هێزەکانی ئەلفا
     socket.on('register_alpha', (data) => {
         if (VALID_KEYS.includes(data.apiKey)) {
             socket.alphaName = data.apiKey;
@@ -42,6 +46,7 @@ io.on('connection', (socket) => {
         }
     });
 
+    // 📍 ٢. تازەکردنەوەی شوێن (Location Update)
     socket.on('updateLocation', (data) => {
         if (socket.alphaName && units[socket.alphaName]) {
             units[socket.alphaName].lat = data.lat;
@@ -53,11 +58,12 @@ io.on('connection', (socket) => {
         }
     });
 
-    // چارەسەرکردنی ناردنی پەیامی فەرماندە بۆ گشت هێزەکان 📡
+    // 📡 ٣. پەخشکردنی فەرمانی فەرماندە (President Broadcast)
     socket.on('presidentBroadcast', (data) => {
         io.emit('receiveMessage', data);
     });
 
+    // ✉️ ٤. ناردنی پەیامی بەپەلە و ئاسایی
     socket.on('sendEmergencyMessage', (data) => {
         if (units[data.sender]) {
             units[data.sender].status = 'SOS';
@@ -66,24 +72,44 @@ io.on('connection', (socket) => {
         io.emit('receiveMessage', data);
     });
 
+    // 🚨 ٥. هاواری بەپەلە (SOS Alert)
+    socket.on('sosAlert', (data) => {
+        if (socket.alphaName && units[socket.alphaName]) {
+            units[socket.alphaName].status = 'SOS';
+            io.emit('updateUnitsList', units);
+        }
+        io.emit('receiveSOS', data);
+    });
+
+    // 🎯 ٦. ئامانجی فەرماندەیی (Commander Target)
     socket.on('president_target_location', (targetData) => {
         io.emit('update_commander_target', targetData);
     });
 
-    // پەیوەندی دەنگی (WebRTC Signaling) 🎙️
-    socket.on('voice_signal', (data) => {
-        io.emit('voice_signal', data);
+    // 🎙️ ٧. گواستنەوەی دەنگی ڕاستەوخۆ (WebRTC Signaling)
+    socket.on('audio-offer', (data) => {
+        socket.broadcast.emit('audio-offer', data);
     });
 
+    socket.on('audio-answer', (data) => {
+        socket.broadcast.emit('audio-answer', data);
+    });
+
+    socket.on('ice-candidate', (data) => {
+        socket.broadcast.emit('ice-candidate', data);
+    });
+
+    // ❌ ٨. پچڕانی پەیوەندی
     socket.on('disconnect', () => {
         if (socket.alphaName && units[socket.alphaName]) {
             delete units[socket.alphaName];
             io.emit('updateUnitsList', units);
         }
+        console.log('❌ ئامێرێک پچڕا:', socket.id);
     });
 });
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
-    console.log(`سێرڤەر چالاکە لەسەر پۆرتی ${PORT}`);
+    console.log(`🚀 سێرڤەر بە سەرکەوتوویی لەسەر پۆرتی ${PORT} چالاک بوو`);
 });
