@@ -21,7 +21,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
         body { background: var(--bg-deep); color: var(--cyan-accent); overflow-x: hidden; }
 
-        /* بکگراوندی ڤیدیۆیی 🎥 */
         #bg-video {
             position: fixed; right: 0; bottom: 0; min-width: 100%; min-height: 100%;
             z-index: -2; object-fit: cover; filter: brightness(0.2) contrast(1.2);
@@ -31,7 +30,6 @@
             background: rgba(3, 7, 18, 0.85); z-index: -1;
         }
 
-        /* شاشەی لۆگین 🔒 */
         #login-screen {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             height: 100vh; padding: 20px;
@@ -50,7 +48,6 @@
             font-size: 14px; text-align: center;
         }
 
-        /* شاشەی سەرەکی 📱 */
         #main-app { display: none; padding: 12px; max-width: 520px; margin: auto; position: relative; }
         
         .header-bar {
@@ -77,7 +74,6 @@
             display: flex; align-items: center; justify-content: space-between; color: white;
         }
 
-        /* دوگمەکان 🔘 */
         .btn {
             background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white;
             border: none; padding: 12px; border-radius: 8px; cursor: pointer;
@@ -98,7 +94,6 @@
             color: #030712; border-color: var(--gold-accent);
         }
 
-        /* FAB Button 📩 */
         .msg-fab {
             position: fixed; bottom: 20px; left: 20px;
             background: var(--blue-accent); color: white; width: 52px; height: 52px;
@@ -112,7 +107,6 @@
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
         }
 
-        /* مۆدالی پەیامەکان 📜 */
         #msgModal {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0,0,0,0.75); z-index: 10000; display: none;
@@ -145,7 +139,6 @@
     </video>
     <div class="overlay"></div>
 
-    <!-- شاشەی چوونەژوورەوە -->
     <div id="login-screen">
         <div class="login-box">
             <h2>🛡️ چوونەژوورەوەی یەکەی ئەلفا</h2>
@@ -158,7 +151,6 @@
         </div>
     </div>
 
-    <!-- شاشەی سەرەکی مەیدانی -->
     <div id="main-app">
         <div class="header-bar">
             <div>یەکە: <span id="unit-name-display" style="color:var(--green-accent); font-weight:bold;">-</span></div>
@@ -186,13 +178,11 @@
         <p id="statusText" class="status-msg"></p>
     </div>
 
-    <!-- دوگمەی پەیامەکان -->
     <div class="msg-fab" onclick="toggleMsgModal()">
         📩
         <div class="msg-badge" id="unreadBadge" style="display:none;">0</div>
     </div>
 
-    <!-- مۆدالی پەیامەکان -->
     <div id="msgModal">
         <div class="msg-modal-content">
             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -213,6 +203,7 @@
         let isMicOn = false;
         let currentUnitName = "";
         let audioStream = null;
+        let mediaRecorder = null;
         let watchId = null;
         let unreadCount = 0;
 
@@ -319,10 +310,22 @@
             try {
                 if (!isMicOn) {
                     audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(audioStream);
+                    
+                    mediaRecorder.ondataavailable = event => {
+                        if (event.data.size > 0) {
+                            socket.emit('voice_stream', event.data);
+                        }
+                    };
+                    
+                    mediaRecorder.start(500);
                     isMicOn = true;
                     btn.innerText = "🎙️ بێسیم: ON";
                     btn.classList.add('active');
                 } else {
+                    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                        mediaRecorder.stop();
+                    }
                     if (audioStream) {
                         audioStream.getTracks().forEach(track => track.stop());
                     }
@@ -354,9 +357,16 @@
                     lastSeen: Date.now()
                 });
 
-                socket.emit('receiveSOS', {
+                // بەستنەوە بە هەردوو ئیڤێنتی سەر سێرڤەر بۆ دڵنیابوون لە گەیشتنی SOS
+                socket.emit('sosAlert', {
                     sender: currentUnitName,
                     time: new Date().toLocaleTimeString()
+                });
+
+                socket.emit('sendEmergencyMessage', {
+                    sender: currentUnitName,
+                    text: '🚨 هاواری بەپەلە (SOS) ڕەوانەکرا!',
+                    type: 'SOS'
                 });
 
                 addMessageToInbox('🚨 **SOS**', 'نیشانەی مەترسی بەپەلە نێردرا بۆ فەرماندە!', 'sos');
@@ -372,7 +382,8 @@
             addMessageToInbox(data.sender, data.text, 'normal');
         });
 
-        socket.on('update_commander_target', (data) => {
+        // وەرگرتنی ئامانجی فەرماندە بە هەردوو ناوەکەی سێرڤەر
+        const handleCommanderTarget = (data) => {
             if (targetMarker) map.removeLayer(targetMarker);
             targetMarker = L.marker([data.lat, data.lon], {
                 icon: L.divIcon({ className: 'custom-target', html: '🎯', iconSize: [30, 30] })
@@ -380,6 +391,19 @@
             
             map.setView([data.lat, data.lon], 16);
             addMessageToInbox('فەرماندەیی', 'ئامانجێکی نوێ لەسەر نەخشەکە دیاریکرا!', 'commander');
+        };
+
+        socket.on('update_commander_target', handleCommanderTarget);
+        socket.on('set_commander_target', handleCommanderTarget);
+
+        // وەرگرتنی دەنگ لە سێرڤەرەوە
+        socket.on('receive_voice_stream', (audioChunk) => {
+            const blob = new Blob([audioChunk], { type: 'audio/webm' });
+            const audioUrl = URL.createObjectURL(blob);
+            const audio = new Audio(audioUrl);
+            const vol = document.getElementById('volControl').value;
+            audio.volume = vol;
+            audio.play().catch(e => console.log("لێدانی دەنگ سەرکەوتوو نەبوو", e));
         });
 
         function addMessageToInbox(sender, text, type) {
