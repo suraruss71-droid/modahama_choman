@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ئەلفا - مۆبایلی مەیدانی</title>
+    <style>
+        body { font-family: Tahoma, sans-serif; background: #030712; color: #fff; text-align: center; padding: 20px; }
+        .box { background: #0b132b; border: 1px solid #1e293b; padding: 20px; border-radius: 8px; max-width: 400px; margin: auto; }
+        .btn { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 10px; width: 100%; }
+        .btn-sos { background: #ef4444; }
+        input { width: 100%; padding: 8px; margin: 10px 0; background: #020617; border: 1px solid #1e293b; color: #fff; border-radius: 4px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>🛡️ بەشی هێزی مەیدانی (ئەلفا)</h2>
+        <p>ناوی یەکە یان کۆدی خۆت بنووسە:</p>
+        <input type="text" id="unitIdInput" value="Alpha 1" placeholder="نموونە: Alpha 1">
+        <button class="btn" onclick="startSendingLocation()">دەستپێکردنی ناردنی شوێن (Live)</button>
+        <button class="btn btn-sos" onclick="sendSosSignal()">🚨 ناردنی نیشانەی مەترسی (SOS)</button>
+        <p id="statusText" style="margin-top: 15px; font-size: 13px; color: #10b981;"></p>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        let watchId = null;
+
+        function startSendingLocation() {
+            let unitId = document.getElementById('unitIdInput').value || 'Alpha 1';
+            if (!navigator.geolocation) {
+                alert('گەرۆک (GPS) پشتگیری ناکرێت لەم ئامێرەدا.');
+                return;
+            }
+
+            document.getElementById('statusText.innerText = "پەیوەندی بە ژووری ئۆپەراسیۆنەوە کرا، شوێن دەنێردرێت...";
+
+            watchId = navigator.geolocation.watchPosition((position) => {
+                let lat = position.coords.latitude;
+                let lon = position.coords.longitude;
+                let heading = position.coords.heading || 0;
+
+                socket.emit('updateLocation', {
+                    id: unitId,
+                    lat: lat,
+                    lon: lon,
+                    heading: heading,
+                    status: 'ئامادەباش'
+                });
+            }, (error) => {
+                alert('هەڵە لە وەرگرتنی GPS: ' + error.message);
+            }, { enableHighAccuracy: true });
+        }
+
+        function sendSosSignal() {
+            let unitId = document.getElementById('unitIdInput').value || 'Alpha 1';
+            navigator.geolocation.getCurrentPosition((position) => {
+                socket.emit('updateLocation', {
+                    id: unitId,
+                    lat: position.coords.latitude,
+                    lon: position.coords.longitude,
+                    heading: 0,
+                    status: 'SOS'
+                });
+                alert('⚠️ نیشانەی مەترسی بە سەرکەوتوویی نێردرا بۆ فەرماندە!');
+            });
+        }
+    </script>
+</body>
+</html>
