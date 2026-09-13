@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ژووری ئۆپەراسیۆنی سەربازی باڵا - فەرماندە چۆمان</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --bg-deep: #030712;
+            --panel-bg: #0b132b;
+            --panel-border: #1e293b;
+            --gold-accent: #f59e0b;
+            --blue-accent: #3b82f6;
+            --red-accent: #ef4444;
+            --green-accent: #10b981;
+            --text-main: #f8fafc;
+            --text-muted: #64748b;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            overflow: hidden;
+        }
+
+        #auth-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(3, 7, 18, 0.96); z-index: 99999;
+            display: flex; justify-content: center; align-items: center;
+            backdrop-filter: blur(10px);
+        }
+        .auth-box {
+            background: var(--panel-bg); border: 2px solid var(--gold-accent);
+            padding: 30px; border-radius: 12px; width: 420px; text-align: center;
+            box-shadow: 0 0 40px rgba(245, 158, 11, 0.3);
+        }
+        .auth-box h1 { color: var(--gold-accent); font-size: 20px; margin-bottom: 10px; }
+        .auth-box p { color: var(--text-muted); font-size: 13px; margin-bottom: 20px; line-height: 1.6; }
+        .auth-input {
+            width: 100%; padding: 10px; background: #020617; border: 1px solid var(--panel-border);
+            color: white; border-radius: 6px; margin-bottom: 15px; text-align: center; font-size: 14px;
+        }
+        .auth-btn {
+            background: linear-gradient(135deg, var(--gold-accent), #d97706);
+            color: #030712; border: none; padding: 10px; width: 100%; font-weight: bold;
+            border-radius: 6px; cursor: pointer; font-size: 14px;
+        }
+        .auth-error { color: var(--red-accent); font-size: 12px; margin-top: 8px; display: none; }
+
+        #container { display: flex; height: 100vh; width: 100vw; position: relative; }
+        
+        #sidebar {
+            width: 440px; min-width: 440px; background: var(--panel-bg);
+            padding: 10px; display: flex; flex-direction: column;
+            border-left: 2px solid var(--panel-border);
+            box-shadow: -10px 0 30px rgba(0,0,0,0.8); z-index: 1000;
+            height: 100vh; overflow-y: auto;
+        }
+
+        #map-container { flex-grow: 1; height: 100vh; position: relative; }
+        #map { width: 100%; height: 100%; }
+
+        .commander-header-box {
+            display: flex; align-items: center; background: rgba(15, 23, 42, 0.95);
+            padding: 6px 10px; border-radius: 6px; border: 1px solid var(--gold-accent);
+            margin-bottom: 6px; gap: 10px;
+        }
+        .commander-badge-num {
+            background: var(--gold-accent); color: #030712; font-weight: bold;
+            width: 24px; height: 24px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; font-size: 12px;
+            box-shadow: 0 0 10px var(--gold-accent);
+        }
+        .commander-info { font-size: 12px; color: var(--text-main); font-weight: bold; }
+
+        .msg-fab {
+            position: absolute; bottom: 25px; right: 25px;
+            background: var(--blue-accent); color: white; width: 55px; height: 55px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 24px; cursor: pointer; z-index: 2000; box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            border: 2px solid white; transition: transform 0.2s;
+        }
+        .msg-fab:hover { transform: scale(1.08); }
+        .msg-badge-counter {
+            position: absolute; top: -2px; right: -2px;
+            background: var(--red-accent); color: white; font-size: 11px; font-weight: bold;
+            width: 20px; height: 20px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; border: 2px solid var(--bg-deep);
+        }
+
+        #msgModal {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.7); z-index: 10000; display: none;
+            justify-content: center; align-items: center; backdrop-filter: blur(5px);
+        }
+        .msg-modal-content {
+            background: var(--panel-bg); border: 1px solid var(--gold-accent);
+            width: 450px; max-height: 80vh; border-radius: 10px; display: flex; flex-direction: column;
+            padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+
+        .search-coord-box {
+            background: rgba(2, 6, 23, 0.9); border: 1px solid var(--panel-border);
+            padding: 6px; border-radius: 6px; margin-bottom: 6px;
+        }
+        .search-input {
+            width: 100%; background: #0f172a; border: 1px solid var(--panel-border);
+            color: white; padding: 5px; border-radius: 4px; font-size: 11px; margin-bottom: 4px;
+        }
+
+        #top-dashboard-bar {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            background: rgba(11, 19, 43, 0.92); border: 1px solid var(--gold-accent);
+            padding: 8px 18px; border-radius: 8px; z-index: 999;
+            font-family: monospace; font-size: 13px; color: var(--gold-accent);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.7); display: flex; align-items: center; gap: 15px;
+        }
+
+        .weather-badge {
+            background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3);
+            padding: 2px 8px; border-radius: 4px; color: #60a5fa; font-weight: bold;
+        }
+
+        h3 { margin: 6px 0 3px 0; color: #60a5fa; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .live-indicator {
+            font-size: 10px; color: var(--green-accent); background: rgba(16, 185, 129, 0.1);
+            padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.2);
+            display: inline-block; margin-bottom: 4px;
+        }
+
+        .stats-header {
+            display: flex; justify-content: space-between; background: rgba(15, 23, 42, 0.9);
+            padding: 5px 8px; border-radius: 4px; font-size: 11px; margin-bottom: 4px;
+            border: 1px solid var(--panel-border); color: var(--gold-accent); font-weight: bold;
+        }
+
+        .units-container {
+            height: 180px; min-height: 180px; overflow-y: auto;
+            background: rgba(3, 7, 18, 0.7); border: 1px solid var(--panel-border);
+            border-radius: 6px; padding: 5px; margin-bottom: 6px;
+        }
+        .team-group { margin-bottom: 6px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 4px; }
+        .team-title { font-size: 10px; color: var(--gold-accent); margin-bottom: 2px; font-weight: bold; }
+        
+        .unit-row {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(15, 23, 42, 0.85); padding: 3px 6px;
+            margin-bottom: 2px; border-radius: 4px; font-size: 10px;
+            border-right: 3px solid #000000;
+        }
+        .unit-row.online { border-right-color: var(--green-accent); }
+        .unit-row.offline { border-right-color: #000000; background: rgba(5, 8, 15, 0.5); opacity: 0.5; }
+        .unit-row.sos { border-right-color: var(--red-accent); background: rgba(127, 29, 29, 0.6); animation: flashRed 1s infinite; }
+
+        @keyframes flashRed {
+            0% { border-color: var(--red-accent); }
+            50% { border-color: #fca5a5; }
+            100% { border-color: var(--red-accent); }
+        }
+
+        .dot-on { width: 6px; height: 6px; background: var(--green-accent); border-radius: 50%; display: inline-block; box-shadow: 0 0 5px var(--green-accent); }
+        .dot-off { width: 6px; height: 6px; background: #000000; border: 1px solid #475569; border-radius: 50%; display: inline-block; }
+
+        .broadcast-section {
+            background: rgba(2, 6, 23, 0.8); border: 1px solid var(--panel-border);
+            padding: 6px; border-radius: 6px; margin-top: 4px;
+        }
+        .broadcast-input {
+            width: 100%; background: #0f172a; border: 1px solid var(--panel-border);
+            color: white; padding: 5px; border-radius: 4px; font-size: 11px; margin-bottom: 4px;
+        }
+        .messages-box {
+            height: 90px; background: #020617; border: 1px solid var(--panel-border);
+            border-radius: 6px; padding: 5px; overflow-y: auto; font-size: 11px; margin-top: 4px;
+        }
+        .msg-item {
+            padding: 4px 6px; margin-bottom: 3px; border-radius: 4px; background: rgba(30, 41, 59, 0.7);
+            border-left: 3px solid var(--blue-accent);
+        }
+        .msg-item.sos { border-left-color: var(--red-accent); background: rgba(153, 27, 27, 0.4); color: #fca5a5; }
+
+        .btn {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white; border: none; padding: 5px; border-radius: 4px;
+            cursor: pointer; width: 100%; font-weight: bold; font-size: 11px; margin-top: 3px;
+        }
+        .btn-mute { background: linear-gradient(135deg, #ca8a04, #a16207); }
+        .btn-mic { background: linear-gradient(135deg, #059669, #047857); }
+        .btn-send { background: linear-gradient(135deg, #10b981, #059669); }
+        .btn-my-location { background: linear-gradient(135deg, #8b5cf6, #7c3aed); margin-bottom: 4px; }
+
+        .arrow-marker { background: transparent; border: none; }
+    </style>
+</head>
+<body>
+
+    <div id="auth-overlay">
+        <div class="auth-box">
+            <h1>⭐ ژووری ئۆپەراسیۆنی سەربازی باڵا</h1>
+            <p>فەرموو پاسوۆردی فەرماندە بنووسە بۆ کردنەوەی سیستەم:</p>
+            <input type="password" id="authPass" class="auth-input" placeholder="پاسوۆرد (Choman)...">
+            <button class="auth-btn" onclick="verifyCommander()">چوونە ژوورەوە</button>
+            <div id="authError" class="auth-error">پاسوۆردی هەڵەیە! تکایە (Choman) بنووسە.</div>
+        </div>
+    </div>
+
+    <div class="msg-fab" onclick="toggleMessageModal()" title="پەیام و هۆشدارییەکان">
+        📩
+        <div class="msg-badge-counter" id="msgBadgeCount">1</div>
+    </div>
+
+    <div id="msgModal">
+        <div class="msg-modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="margin: 0; color: var(--gold-accent);">نامە و هۆشدارییە میدانییەکان</h3>
+                <button onclick="toggleMessageModal()" style="background:var(--red-accent); color:white; border:none; border-radius:4px; padding:2px 8px; cursor:pointer;">✕</button>
+            </div>
+            <div class="messages-box" id="modalMessagesList" style="height: 250px;">
+                <div class="msg-item">
+                    <b>ئاگاداری سیستەم:</b> فەرماندە چۆمان، ژووری ئۆپەراسیۆن بە سەرکەوتوویی دەستبەکاربوو.<br>
+                    <span style="font-size: 9px; color: #9ca3af;">ئێستا</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="container" style="display: none;">
+        <div id="sidebar">
+            <div class="commander-header-box">
+                <div class="commander-badge-num">1</div>
+                <div class="commander-info">🇮🇶 KS-Choman (فەرماندەی گشتی)</div>
+            </div>
+            <div><span class="live-indicator">● سیستەمی پارێزراوی ئۆپەراسیۆن</span></div>
+
+            <button class="btn btn-my-location" onclick="goToMyLocation()">📍 نیشانۆکەی من (پانی و درێژی خۆم)</button>
+
+            <button class="btn btn-mic" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ مایکرۆفۆن: کوژاوە (Muted)</button>
+
+            <div class="search-coord-box">
+                <input type="text" id="coordSearchInput" class="search-input" placeholder="سێرچ بە کۆد/MGRS (نموونە: 38SMF 47237)">
+                <button class="btn" style="padding: 4px;" onclick="searchByCoord()">بەدوای کۆدەکەدا گەڕان و دیاریکردن</button>
+            </div>
+
+            <div class="stats-header">
+                <span id="onlineCountText">ئۆنلاین: 0 / ٣٠</span>
+                <span>کۆی هێزەکان: ٣٠ ئەلفا</span>
+            </div>
+
+            <div class="units-container" id="unitsList"></div>
+
+            <div class="broadcast-section">
+                <h3>ناردنی فەرمان بۆ گشت هێزەکان</h3>
+                <input type="text" id="presMsgInput" class="broadcast-input" placeholder="فەرمان بنووسە...">
+                <button class="btn btn-send" onclick="sendPresidentMessage()">ناردنی فەرمان</button>
+                <div class="messages-box" id="messagesList">
+                    <div class="msg-item"><b>سیستەم:</b> ئامادەیە بۆ وەرگرتن و ناردنی پەیام.</div>
+                </div>
+            </div>
+
+            <hr style="border-color: var(--panel-border); margin: 4px 0;">
+            <button class="btn btn-mute" id="muteBtn" onclick="toggleMute()">میوت کردن (Mute All): کوژاوە</button>
+        </div>
+
+        <div id="map-container">
+            <div id="top-dashboard-bar">
+                <span id="mgrsCode">38SMF 47237 53104</span> 
+                <span>|</span>
+                <span id="coordDisplay">پانی: 36.6197 | درێژی: 44.4105</span>
+                <span>|</span>
+                <div class="weather-badge" id="weatherWidget">☀️ 34°C - ئاسمان پاک</div>
+            </div>
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        function verifyCommander() {
+            const pass = document.getElementById('authPass').value;
+            if(pass === 'Choman') {
+                document.getElementById('auth-overlay').style.display = 'none';
+                document.getElementById('container').style.display = 'flex';
+                setTimeout(() => { map.invalidateSize(); }, 300);
+            } else {
+                document.getElementById('authError').style.display = 'block';
+            }
+        }
+
+        const socket = io();
+        
+        const map = L.map('map', { zoomControl: false }).setView([36.6197, 44.4105], 15);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 20,
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+            attribution: 'Map data &copy; Esri & Contributors'
+        }).addTo(map);
+
+        L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 20,
+            opacity: 0.85
+        }).addTo(map);
+
+        let markers = {};
+        let isMuted = false;
+        let myLocationMarker = null;
+        let dangerCircle = null;
+
+        let micActive = false;
+        let localAudioStream = null;
+
+        async function toggleMicrophone() {
+            const micBtn = document.getElementById('micToggleBtn');
+            try {
+                if (!micActive) {
+                    localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    micActive = true;
+                    micBtn.innerText = "🎙️ مایکرۆفۆن: چالاکە (Active)";
+                    micBtn.style.background = "linear-gradient(135deg, #dc2626, #b91c1c)";
+                } else {
+                    if (localAudioStream) {
+                        localAudioStream.getTracks().forEach(track => track.stop());
+                    }
+                    micActive = false;
+                    micBtn.innerText = "🎙️ مایکرۆفۆن: کوژاوە (Muted)";
+                    micBtn.style.background = "linear-gradient(135deg, #059669, #047857)";
+                }
+            } catch (err) {
+                alert('ڕێگەپێدانی مایکرۆفۆن سەرکەوتوو نەبوو یان مایکرۆفۆن بوونی نییە!');
+            }
+        }
+
+        function createDangerCircle(lat, lng) {
+            if (dangerCircle) map.removeLayer(dangerCircle);
+            dangerCircle = L.circle([lat, lng], {
+                color: '#3b82f6',
+                fillColor: '#3b82f6',
+                fillOpacity: 0.35,
+                radius: 800
+            }).addTo(map).bindPopup('<b>بازنەی فەرماندەیی (لەبەرەی پارێزراو دوور مەکەونەوە)</b>');
+        }
+
+        map.on('move', function() {
+            let center = map.getCenter();
+            let lat = center.lat.toFixed(4);
+            let lon = center.lng.toFixed(4);
+            
+            document.getElementById('mgrsCode').innerText = `38SMF ${Math.floor(center.lat * 10000)} ${Math.floor(center.lng * 10000)}`;
+            document.getElementById('coordDisplay').innerText = `پانی: ${lat} | درێژی: ${lon}`;
+
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`)
+                .then(response => response.json())
+                .then(data => {
+                    if(data && data.current_weather) {
+                        let temp = Math.round(data.current_weather.temperature);
+                        let wind = data.current_weather.windspeed;
+                        document.getElementById('weatherWidget').innerText = `🌡️ ${temp}°C | 💨 ${wind} کم/ژ`;
+                    }
+                }).catch(err => console.log('Weather fetch error'));
+        });
+
+        function goToMyLocation() {
+            navigator.geolocation ? navigator.geolocation.getCurrentPosition((pos) => {
+                let lat = pos.coords.latitude;
+                let lon = pos.coords.longitude;
+                map.setView([lat, lon], 17);
+                if (myLocationMarker) map.removeLayer(myLocationMarker);
+                myLocationMarker = L.marker([lat, lon]).addTo(map).bindPopup('<b>فەرماندە چۆمان لێرەیە</b>').openPopup();
+                createDangerCircle(lat, lon);
+            }, () => {
+                map.setView([36.6197, 44.4105], 17);
+                createDangerCircle(36.6197, 44.4105);
+            }) : map.setView([36.6197, 44.4105], 17);
+        }
+
+        function searchByCoord() {
+            let query = document.getElementById('coordSearchInput').value;
+            if(!query) {
+                alert('تکایە کۆدێک یان MGRS بنووسە!');
+                return;
+            }
+            map.setView([36.6197, 44.4105], 18);
+            L.marker([36.6197, 44.4105]).addTo(map).bindPopup(`<b>شوێنی دۆزراوە بۆ کۆدی: ${query}</b>`).openPopup();
+            createDangerCircle(36.6197, 44.4105);
+            document.getElementById('coordSearchInput').value = '';
+        }
+
+        function toggleMessageModal() {
+            const modal = document.getElementById('msgModal');
+            if (modal.style.display === 'flex') {
+                modal.style.display = 'none';
+            } else {
+                modal.style.display = 'flex';
+                document.getElementById('msgBadgeCount').style.display = 'none';
+            }
+        }
+
+        function renderDefaultUnits() {
+            const listDiv = document.getElementById('unitsList');
+            listDiv.innerHTML = '';
+            let totalUnits = 30;
+
+            for (let t = 1; t <= 8; t++) {
+                let teamHtml = `<div class="team-group"><div class="team-title">⚡ تیپی سەربازی (${t})</div>`;
+                let startIdx = (t - 1) * 4 + 1;
+                let endIdx = Math.min(t * 4, totalUnits);
+                if (startIdx > totalUnits) break;
+
+                for (let i = startIdx; i <= endIdx; i++) {
+                    let unitName = `Alpha ${i}`;
+                    teamHtml += `
+                        <div class="unit-row offline">
+                            <div><b>${unitName}</b></div>
+                            <div><span class="dot-off"></span> ۆفلاین | <span style="color: #94a3b8">ئامادەباش</span></div>
+                        </div>
+                    `;
+                }
+                teamHtml += `</div>`;
+                listDiv.innerHTML += teamHtml;
+            }
+            document.getElementById('onlineCountText').innerText = `ئۆنلاین: 0 / ٣٠`;
+        }
+
+        renderDefaultUnits();
+
+        socket.on('updateUnitsList', (units) => {
+            const listDiv = document.getElementById('unitsList');
+            listDiv.innerHTML = '';
+
+            let onlineCount = 0;
+            let totalUnits = 30;
+
+            for (let t = 1; t <= 8; t++) {
+                let teamHtml = `<div class="team-group"><div class="team-title">⚡ تیپی سەربازی (${t})</div>`;
+                let startIdx = (t - 1) * 4 + 1;
+                let endIdx = Math.min(t * 4, totalUnits);
+                if (startIdx > totalUnits) break;
+
+                for (let i = startIdx; i <= endIdx; i++) {
+                    let unitKey = `Alpha ${i}`;
+                    let unit = units[unitKey] || (units[Object.keys(units)[i-1]] ? units[Object.keys(units)[i-1]] : null);
+                    
+                    let isOnline = unit && (Date.now() - (unit.lastSeen || 0) < 15000);
+                    if (isOnline) onlineCount++;
+
+                    let isSos = unit && unit.status === 'SOS';
+                    let rowClass = isSos ? 'unit-row sos' : (isOnline ? 'unit-row online' : 'unit-row offline');
+                    let statusIndicator = isOnline ? '<span class="dot-on"></span> ئۆنلاین' : '<span class="dot-off"></span> ۆفلاین';
+                    let unitName = unit ? unit.id : `Alpha ${i}`;
+                    let unitState = unit ? unit.status : 'ئامادەباش';
+
+                    teamHtml += `
+                        <div class="${rowClass}">
+                            <div><b>${unitName}</b></div>
+                            <div>${statusIndicator} | <span style="color: ${isSos?'#ef4444':'#94a3b8'}">${unitState}</span></div>
+                        </div>
+                    `;
+
+                    if (unit && unit.lat && unit.lon) {
+                        let rot = unit.heading || 0;
+                        let color = isSos ? '#ef4444' : (isOnline ? '#3b82f6' : '#475569');
+                        let iconHtml = `<div style="transform: rotate(${rot}deg); font-size: 24px; color: ${color}; filter: drop-shadow(0 0 4px rgba(0,0,0,0.9));">➤</div>`;
+                        let customIcon = L.divIcon({ className: 'arrow-marker', html: iconHtml, iconSize: [28, 28], iconAnchor: [14, 14] });
+
+                        if (markers[unit.id]) {
+                            markers[unit.id].setLatLng([unit.lat, unit.lon]);
+                            markers[unit.id].setIcon(customIcon);
+                        } else {
+                            markers[unit.id] = L.marker([unit.lat, unit.lon], { icon: customIcon })
+                                .addTo(map)
+                                .bindPopup(`<b>${unit.id}</b><br>دۆخ: ${unit.status}<br><button onclick="map.setView([${unit.lat}, ${unit.lon}], 18)" style="background:#2563eb; color:#fff; border:none; padding:3px 6px; border-radius:3px; margin-top:4px; cursor:pointer;">بینینی شوێنەکەی</button>`);
+                        }
+                    }
+                }
+                teamHtml += `</div>`;
+                listDiv.innerHTML += teamHtml;
+            }
+            document.getElementById('onlineCountText').innerText = `ئۆنلاین: ${onlineCount} / ٣٠`;
+        });
+
+        socket.on('receiveMessage', (data) => {
+            const msgBox = document.getElementById('messagesList');
+            const modalMsgBox = document.getElementById('modalMessagesList');
+            let isSos = data.type === 'SOS';
+            
+            let htmlContent = `
+                <div class="msg-item ${isSos ? 'sos' : ''}">
+                    <b>${data.sender}:</b> ${data.text}<br>
+                    <span style="font-size: 9px; color: #9ca3af;">${new Date().toLocaleTimeString()}</span>
+                </div>
+            `;
+            
+            msgBox.innerHTML = htmlContent + msgBox.innerHTML;
+            modalMsgBox.innerHTML = htmlContent + modalMsgBox.innerHTML;
+            document.getElementById('msgBadgeCount').style.display = 'flex';
+        });
+
+        function sendPresidentMessage() {
+            const text = document.getElementById('presMsgInput').value;
+            if(!text) return;
+            socket.emit('presidentBroadcast', { sender: 'فەرماندە چۆمان', text: text, time: Date.now() });
+            
+            const msgBox = document.getElementById('messagesList');
+            const modalMsgBox = document.getElementById('modalMessagesList');
+            
+            let htmlContent = `
+                <div class="msg-item" style="border-left-color: var(--gold-accent); background: rgba(245, 158, 11, 0.2);">
+                    <b>فەرماندە چۆمان:</b> ${text}<br>
+                    <span style="font-size: 9px; color: var(--gold-accent);">نێردرا لەلایەن سەرۆکەوە</span>
+                </div>
+            `;
+            
+            msgBox.innerHTML = htmlContent + msgBox.innerHTML;
+            modalMsgBox.innerHTML = htmlContent + modalMsgBox.innerHTML;
+            document.getElementById('presMsgInput').value = '';
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            const btn = document.getElementById('muteBtn');
+            btn.innerText = isMuted ? "میوت کردن (Mute All): چالاکە" : "میوت کردن (Mute All): کوژاوە";
+            btn.style.background = isMuted ? "linear-gradient(135deg, #dc2626, #b91c1c)" : "linear-gradient(135deg, #ca8a04, #a16207)";
+        }
+    </script>
+</body>
+</html>
