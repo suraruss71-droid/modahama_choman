@@ -245,7 +245,6 @@
 
             <button class="btn btn-my-location" onclick="goToMyLocation()">📍 نیشانۆکەی من (پانی و درێژی خۆم)</button>
 
-            <!-- دوگمەی مایکرۆفۆن بۆ ناردنی پەخشی دەنگ -->
             <button class="btn btn-mic" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ مایکرۆفۆن: کوژاوە (Muted)</button>
 
             <div class="volume-box">
@@ -379,7 +378,6 @@
                 .bindPopup("🎯 ئامانجی دیاریکراوی فەرماندە").openPopup();
 
             socket.emit('set_commander_target', { lat: lat, lon: lon });
-            console.log("📍 ئامانج نێردرا بۆ سەربازەکان:", lat, lon);
         });
 
         function changeVolume(val) {
@@ -402,7 +400,7 @@
                         }
                     };
                     
-                    mediaRecorder.start(500);
+                    mediaRecorder.start(250);
                     
                     micActive = true;
                     micBtn.innerText = "🎙️ مایکرۆفۆن: چالاکە (پەخشی دەنگ دەڕوات)";
@@ -608,6 +606,17 @@
             msgBox.innerHTML = htmlContent + msgBox.innerHTML;
             modalMsgBox.innerHTML = htmlContent + modalMsgBox.innerHTML;
             document.getElementById('msgBadgeCount').style.display = 'flex';
+        });
+
+        // وەرگرتنی پەخشی دەنگ لە لایەن فەرماندەوە بۆ گوێگرتن لە دەنگی ئەلفاکان
+        socket.on('receive_voice_stream', (audioChunk) => {
+            if (isMuted) return;
+            const blob = new Blob([audioChunk], { type: 'audio/webm' });
+            const audioUrl = URL.createObjectURL(blob);
+            const audio = new Audio(audioUrl);
+            const slider = document.getElementById('volumeSlider');
+            audio.volume = slider ? slider.value : 1;
+            audio.play().catch(e => console.log("لێدانی دەنگ سەرکەوتوو نەبوو", e));
         });
 
         function sendPresidentMessage() {
