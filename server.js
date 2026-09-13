@@ -12,24 +12,17 @@ const io = new Server(server, {
     }
 });
 
-// بڵاوکردنەوەی فایلە HTML و فایلە ستاتیکەکان 📂
+// بڵاوکردنەوەی فایلە ستاتیکەکان 📂
 app.use(express.static(path.join(__dirname)));
 
 let units = {};
 
 io.on('connection', (socket) => {
-    console.log('ئەلفا پەیوەندی بە سێرڤەرەوە کرد:', socket.id);
-
-    // ناردنەوەی دوایین لیستی یەکەکان بۆ ئەوەی هەر کەسێک نوێبوەوە زانیارییەکە ببینێت
-    socket.emit('updateUnitsList', units);
+    console.log('یەکەیەکی نوێ پەیوەندی کرد:', socket.id);
 
     socket.on('updateLocation', (data) => {
         units[data.id] = { ...data, lastSeen: Date.now() };
         io.emit('updateUnitsList', units);
-    });
-
-    socket.on('presidentBroadcast', (data) => {
-        io.emit('receiveMessage', data);
     });
 
     socket.on('disconnect', () => {
@@ -39,5 +32,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`سێرڤەر لەسەر پۆرت ${PORT} کار دەکات`);
+    console.log(`سێرڤەر لەسەر پۆرت ${PORT} کار دەکات 🚀`);
 });
