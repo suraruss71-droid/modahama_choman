@@ -34,7 +34,7 @@
                 return;
             }
 
-            document.getElementById('statusText.innerText = "پەیوەندی بە ژووری ئۆپەراسیۆنەوە کرا، شوێن دەنێردرێت...";
+            document.getElementById('statusText').innerText = "پەیوەندی بە ژووری ئۆپەراسیۆنەوە کرا، شوێن دەنێردرێت...";
 
             watchId = navigator.geolocation.watchPosition((position) => {
                 let lat = position.coords.latitude;
