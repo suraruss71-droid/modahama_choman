@@ -347,7 +347,6 @@
         let localAudioStream = null;
         let mediaRecorder = null; 
 
-        // 🔊 دروستکردنی زەنگی مەترسی ناوخۆیی (بەبێ پێویستی بە فایلی دەرەکی mp3)
         function playAlarmSound() {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -589,7 +588,6 @@
             document.getElementById('msgBadgeCount').style.display = 'flex';
         });
 
-        // 🚨 ئیڤێنتی وەرگرتنی SOS لەگەڵ لێدانی زەنگی ناوخۆیی
         socket.on('receiveSOS', (data) => {
             const msgBox = document.getElementById('messagesList');
             const modalMsgBox = document.getElementById('modalMessagesList');
