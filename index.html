@@ -245,6 +245,7 @@
 
             <button class="btn btn-my-location" onclick="goToMyLocation()">📍 نیشانۆکەی من (پانی و درێژی خۆم)</button>
 
+            <!-- دوگمەی مایکرۆفۆن بۆ ناردنی پەخشی دەنگ -->
             <button class="btn btn-mic" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ مایکرۆفۆن: کوژاوە (Muted)</button>
 
             <div class="volume-box">
@@ -340,9 +341,47 @@
         let isMuted = false;
         let myLocationMarker = null;
         let dangerCircle = null;
+        let targetMarker = null; 
 
         let micActive = false;
         let localAudioStream = null;
+        let mediaRecorder = null; 
+
+        // 🔊 دروستکردنی زەنگی مەترسی ناوخۆیی (بەبێ پێویستی بە فایلی دەرەکی mp3)
+        function playAlarmSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+
+                oscillator.start();
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.6);
+                oscillator.stop(audioCtx.currentTime + 0.6);
+            } catch (e) {
+                console.log("دەنگی زەنگ لێ نەدرا", e);
+            }
+        }
+
+        map.on('click', function(e) {
+            const lat = e.latlng.lat;
+            const lon = e.latlng.lng;
+
+            if (targetMarker) {
+                map.removeLayer(targetMarker);
+            }
+
+            targetMarker = L.marker([lat, lon]).addTo(map)
+                .bindPopup("🎯 ئامانجی دیاریکراوی فەرماندە").openPopup();
+
+            socket.emit('set_commander_target', { lat: lat, lon: lon });
+            console.log("📍 ئامانج نێردرا بۆ سەربازەکان:", lat, lon);
+        });
 
         function changeVolume(val) {
             const audioElements = document.querySelectorAll('audio');
@@ -356,10 +395,23 @@
             try {
                 if (!micActive) {
                     localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(localAudioStream);
+                    
+                    mediaRecorder.ondataavailable = event => {
+                        if (event.data.size > 0 && !isMuted) {
+                            socket.emit('voice_stream', event.data);
+                        }
+                    };
+                    
+                    mediaRecorder.start(500);
+                    
                     micActive = true;
-                    micBtn.innerText = "🎙️ مایکرۆفۆن: چالاکە (Active)";
+                    micBtn.innerText = "🎙️ مایکرۆفۆن: چالاکە (پەخشی دەنگ دەڕوات)";
                     micBtn.style.background = "linear-gradient(135deg, #dc2626, #b91c1c)";
                 } else {
+                    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                        mediaRecorder.stop();
+                    }
                     if (localAudioStream) {
                         localAudioStream.getTracks().forEach(track => track.stop());
                     }
@@ -537,9 +589,16 @@
             document.getElementById('msgBadgeCount').style.display = 'flex';
         });
 
+        // 🚨 ئیڤێنتی وەرگرتنی SOS لەگەڵ لێدانی زەنگی ناوخۆیی
         socket.on('receiveSOS', (data) => {
             const msgBox = document.getElementById('messagesList');
             const modalMsgBox = document.getElementById('modalMessagesList');
+            
+            if (!isMuted) {
+                playAlarmSound();
+            }
+            
+            alert(`⚠️ ئاگاداری بەپەلە! ${data.sender || 'ئەلفا'} لە مەترسیدایە!`);
             
             let htmlContent = `
                 <div class="msg-item sos">
