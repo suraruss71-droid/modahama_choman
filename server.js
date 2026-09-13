@@ -10,23 +10,25 @@ app.use(express.static(__dirname));
 
 // لیستێک بۆ هەڵگرتنی زانیاری هێزەکان 📊
 let units = {};
-const VALID_API_KEY = "Alpha_one_cyber_surche";
+
+// دروستکردنی کلیلەکانی Alpha 1 تا Alpha 30 بە ئۆتۆماتیکی 🔑
+const VALID_KEYS = Array.from({ length: 30 }, (_, i) => `Alpha ${i + 1}`);
 
 io.on('connection', (socket) => {
     
-    // ١. تۆمارکردنی هێزی ئەلفا 🔑
+    // ١. تۆمارکردن و پشکنینی کلیلی ئەلفا 🔑
     socket.on('register_alpha', (data) => {
-        if (data.apiKey === VALID_API_KEY) {
-            socket.alphaName = data.alphaName;
-            units[data.alphaName] = {
-                id: data.alphaName,
+        if (VALID_KEYS.includes(data.apiKey)) {
+            socket.alphaName = data.apiKey; // کلیلەکە دەبێتە ناوی یەکە
+            units[socket.alphaName] = {
+                id: socket.alphaName,
                 lat: null,
                 lon: null,
                 heading: 0,
                 status: 'ئامادەباش',
                 lastSeen: Date.now()
             };
-            socket.emit('registration_status', { success: true });
+            socket.emit('registration_status', { success: true, alphaName: socket.alphaName });
             io.emit('updateUnitsList', units);
         } else {
             socket.emit('registration_status', { 
@@ -41,7 +43,7 @@ io.on('connection', (socket) => {
         if (socket.alphaName && units[socket.alphaName]) {
             units[socket.alphaName].lat = data.lat;
             units[socket.alphaName].lon = data.lon;
-            units[socket.alphaName].heading = data.heading;
+            units[socket.alphaName].heading = data.heading || 0;
             units[socket.alphaName].status = data.status || 'ئامادەباش';
             units[socket.alphaName].lastSeen = Date.now();
 
@@ -58,12 +60,17 @@ io.on('connection', (socket) => {
         io.emit('receiveMessage', data);
     });
 
-    // ٤. ناردنی فەرمان لەلایەن فەرماندەوە 📢
+    // ٤. ناردنی شوێنی دەستنیشانکراوی فەرماندە بۆ نەخشەی ئەلفاکان 🎯
+    socket.on('president_target_location', (targetData) => {
+        io.emit('update_commander_target', targetData);
+    });
+
+    // ٥. ناردنی فەرمانی گشتی 📢
     socket.on('presidentBroadcast', (data) => {
         io.emit('receiveMessage', data);
     });
 
-    // ٥. کاتی پچڕانی پەیوەندی 🔴
+    // ٦. کاتی پچڕانی پەیوەندی 🔴
     socket.on('disconnect', () => {
         if (socket.alphaName && units[socket.alphaName]) {
             delete units[socket.alphaName];
@@ -72,7 +79,7 @@ io.on('connection', (socket) => {
     });
 });
 
-// دیاریکردنی پۆرت بە شێوەی ئۆتۆماتیکی بۆ Railway 🌐
+// دیاریکردنی پۆرت بۆ Railway 🌐
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
     console.log(`سێرڤەر چالاکە لەسەر پۆرتی ${PORT}`);
