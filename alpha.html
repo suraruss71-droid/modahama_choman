@@ -309,17 +309,30 @@
             const btn = document.getElementById('mic-btn');
             try {
                 if (!isMicOn) {
-                    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(audioStream);
+                    audioStream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: { 
+                            echoCancellation: true, 
+                            noiseSuppression: true, 
+                            autoGainControl: true 
+                        } 
+                    });
+                    
+                    // بەکارهێنانی پشتگیری مۆدێرن بۆ پچڕان نەهێشتن
+                    let options = { mimeType: 'audio/webm;codecs=opus' };
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        options = {};
+                    }
+
+                    mediaRecorder = new MediaRecorder(audioStream, options);
                     
                     mediaRecorder.ondataavailable = event => {
-                        if (event.data.size > 0) {
+                        if (event.data && event.data.size > 0) {
                             socket.emit('voice_stream', event.data);
                         }
                     };
                     
-                    // چاکسازی: کەمکردن بۆ 250 ملیسانیە بۆ ئەوەی دەنگی ئەلفا بە خێرایی و بێ پچڕان بڕوات
-                    mediaRecorder.start(250);
+                    // ناردنی دەنگ بە شێوازی بەردەوام (Timeslice: 500ms) بۆ پاراستنی کوالێتی پەیوەندی بێسیم و ڕێگریکردن لە پچڕان
+                    mediaRecorder.start(500);
                     isMicOn = true;
                     btn.innerText = "🎙️ بێسیم: ON";
                     btn.classList.add('active');
@@ -395,7 +408,7 @@
         socket.on('update_commander_target', handleCommanderTarget);
         socket.on('set_commander_target', handleCommanderTarget);
 
-        // وەرگرتنی دەنگ لە سێرڤەرەوە بە شێوازێکی خێرا و کارا
+        // وەرگرتنی دەنگ بە شێوازی تەلەفۆنی بێ پچڕان
         socket.on('receive_voice_stream', (audioChunk) => {
             const blob = new Blob([audioChunk], { type: 'audio/webm' });
             const audioUrl = URL.createObjectURL(blob);
