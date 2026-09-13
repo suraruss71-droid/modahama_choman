@@ -391,16 +391,29 @@
             const micBtn = document.getElementById('micToggleBtn');
             try {
                 if (!micActive) {
-                    localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(localAudioStream);
+                    localAudioStream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: { 
+                            echoCancellation: true, 
+                            noiseSuppression: true, 
+                            autoGainControl: true 
+                        } 
+                    });
+
+                    let options = { mimeType: 'audio/webm;codecs=opus' };
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        options = {};
+                    }
+
+                    mediaRecorder = new MediaRecorder(localAudioStream, options);
                     
                     mediaRecorder.ondataavailable = event => {
-                        if (event.data.size > 0 && !isMuted) {
+                        if (event.data && event.data.size > 0 && !isMuted) {
                             socket.emit('voice_stream', event.data);
                         }
                     };
                     
-                    mediaRecorder.start(250);
+                    // ڕێکخستنی timeslice بۆ 500 ملیسانیە بۆ ئەوەی دەنگەکان بە پاکەتی گەورەتر و بێ پچڕان بنێردرێن[span_1](start_span)[span_1](end_span)
+                    mediaRecorder.start(500);
                     
                     micActive = true;
                     micBtn.innerText = "🎙️ مایکرۆفۆن: چالاکە (پەخشی دەنگ دەڕوات)";
@@ -608,7 +621,7 @@
             document.getElementById('msgBadgeCount').style.display = 'flex';
         });
 
-        // وەرگرتنی پەخشی دەنگ لە لایەن فەرماندەوە بۆ گوێگرتن لە دەنگی ئەلفاکان
+        // وەرگرتنی پەخشی دەنگ لە لایەن فەرماندەوە بۆ گوێگرتن لە دەنگی ئەلفاکان بە شێوازێکی تەواو ڕێک
         socket.on('receive_voice_stream', (audioChunk) => {
             if (isMuted) return;
             const blob = new Blob([audioChunk], { type: 'audio/webm' });
