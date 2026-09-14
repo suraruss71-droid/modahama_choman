@@ -154,7 +154,7 @@
     <div id="main-app">
         <div class="header-bar">
             <div>یەکە: <span id="unit-name-display" style="color:var(--green-accent); font-weight:bold;">-</span></div>
-            <button id="mic-btn" class="btn btn-mic" style="width: auto; margin:0; padding:6px 12px;" onclick="toggleMic()">🎙️ بێسیم: OFF</button>
+            <button id="mic-btn" class="btn btn-mic" style="width: auto; margin:0; padding:6px 12px;" onclick="toggleMicrophone()">🎙️ بێسیم WebRTC: OFF</button>
         </div>
 
         <div class="dash-info-bar">
@@ -200,12 +200,22 @@
     <script>
         const socket = io();
         let map, userMarker, targetMarker;
-        let isMicOn = false;
         let currentUnitName = "";
-        let audioStream = null;
-        let mediaRecorder = null;
         let watchId = null;
         let unreadCount = 0;
+
+        // متغیڕەکانی WebRTC بۆ پەیوەندییە دەنگییە ڕاستەوخۆکانی دوو قۆڵی و کۆمەڵەیی بە کوالێتی بەرز
+        let micActive = false;
+        let localAudioStream = null;
+        let peerConnections = {};
+        let remoteAudioElements = {};
+
+        const rtcConfig = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
 
         function login() {
             const key = document.getElementById('api-key-input').value.trim();
@@ -246,11 +256,12 @@
 
         async function requestPermissions() {
             try {
+                await navigator.mediaDevices.getUserMedia({ audio: true });
                 if (navigator.geolocation) {
                     startGPS();
                 }
             } catch (err) {
-                console.warn("مۆڵەت نەدراوە.");
+                console.warn("مۆڵەتی مایکرۆفۆن یان لوکەیشن نەدراوە.");
             }
         }
 
@@ -305,56 +316,140 @@
             }
         }
 
-        async function toggleMic() {
+        // 🌟 سیستەمی پێشکەوتووی WebRTC بۆ پەیوەندی دەنگی ڕاستەوخۆی دوو قۆڵی و کۆمەڵەیی
+        async function toggleMicrophone() {
             const btn = document.getElementById('mic-btn');
             try {
-                if (!isMicOn) {
-                    audioStream = await navigator.mediaDevices.getUserMedia({ 
-                        audio: { 
-                            echoCancellation: true, 
-                            noiseSuppression: true, 
-                            autoGainControl: true 
-                        } 
+                if (!micActive) {
+                    localAudioStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true,
+                            channelCount: 1,
+                            sampleRate: 48000
+                        }
                     });
-                    
-                    // بەکارهێنانی پشتگیری مۆدێرن بۆ پچڕان نەهێشتن
-                    let options = { mimeType: 'audio/webm;codecs=opus' };
-                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                        options = {};
+
+                    micActive = true;
+                    btn.innerText = "🎙️ بێسیم WebRTC: ON (پەخش)";
+                    btn.classList.add('active');
+
+                    socket.emit('webrtc_join_audio', { role: currentUnitName });
+
+                } else {
+                    if (localAudioStream) {
+                        localAudioStream.getTracks().forEach(track => track.stop());
+                        localAudioStream = null;
                     }
 
-                    mediaRecorder = new MediaRecorder(audioStream, options);
-                    
-                    mediaRecorder.ondataavailable = event => {
-                        if (event.data && event.data.size > 0) {
-                            socket.emit('voice_stream', event.data);
+                    Object.keys(peerConnections).forEach(peerId => {
+                        if (peerConnections[peerId]) {
+                            peerConnections[peerId].close();
+                            delete peerConnections[peerId];
                         }
-                    };
-                    
-                    // ناردنی دەنگ بە شێوازی بەردەوام (Timeslice: 500ms) بۆ پاراستنی کوالێتی پەیوەندی بێسیم و ڕێگریکردن لە پچڕان
-                    mediaRecorder.start(500);
-                    isMicOn = true;
-                    btn.innerText = "🎙️ بێسیم: ON";
-                    btn.classList.add('active');
-                } else {
-                    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                        mediaRecorder.stop();
-                    }
-                    if (audioStream) {
-                        audioStream.getTracks().forEach(track => track.stop());
-                    }
-                    isMicOn = false;
-                    btn.innerText = "🎙️ بێسیم: OFF";
+                    });
+
+                    micActive = false;
+                    btn.innerText = "🎙️ بێسیم WebRTC: OFF";
                     btn.classList.remove('active');
+
+                    socket.emit('webrtc_leave_audio');
                 }
             } catch (err) {
-                alert('ڕێگەپێدانی مایکرۆفۆن بەردەست نییە!');
+                alert('ڕێگەپێدانی مایکرۆفۆن سەرکەوتوو نەبوو!');
             }
         }
 
+        socket.on('webrtc_peer_list', async (peers) => {
+            if (!micActive || !localAudioStream) return;
+            for (let peerId of peers) {
+                if (!peerConnections[peerId]) {
+                    setupPeerConnection(peerId, true);
+                }
+            }
+        });
+
+        socket.on('webrtc_offer', async (data) => {
+            const { from, offer } = data;
+            let pc = setupPeerConnection(from, false);
+            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+            let answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            socket.emit('webrtc_answer', { target: from, answer: answer });
+        });
+
+        socket.on('webrtc_answer', async (data) => {
+            const { from, answer } = data;
+            if (peerConnections[from]) {
+                await peerConnections[from].setRemoteDescription(new RTCSessionDescription(answer));
+            }
+        });
+
+        socket.on('webrtc_ice_candidate', async (data) => {
+            const { from, candidate } = data;
+            if (peerConnections[from] && candidate) {
+                try {
+                    await peerConnections[from].addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (e) {
+                    console.error('Error adding ice candidate', e);
+                }
+            }
+        });
+
+        function setupPeerConnection(peerId, isInitiator) {
+            if (peerConnections[peerId]) return peerConnections[peerId];
+
+            let pc = new RTCPeerConnection(rtcConfig);
+            peerConnections[peerId] = pc;
+
+            if (localAudioStream) {
+                localAudioStream.getTracks().forEach(track => {
+                    pc.addTrack(track, localAudioStream);
+                });
+            }
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('webrtc_ice_candidate', { target: peerId, candidate: event.candidate });
+                }
+            };
+
+            pc.ontrack = (event) => {
+                if (!remoteAudioElements[peerId]) {
+                    let audioEl = document.createElement('audio');
+                    audioEl.autoplay = true;
+                    let slider = document.getElementById('volControl');
+                    audioEl.volume = slider ? slider.value : 1;
+                    audioEl.srcObject = event.streams[0];
+                    document.body.appendChild(audioEl);
+                    remoteAudioElements[peerId] = audioEl;
+                }
+            };
+
+            if (isInitiator) {
+                pc.createOffer().then(offer => {
+                    pc.setLocalDescription(offer);
+                    socket.emit('webrtc_offer', { target: peerId, offer: offer });
+                });
+            }
+
+            return pc;
+        }
+
+        socket.on('webrtc_peer_disconnected', (peerId) => {
+            if (peerConnections[peerId]) {
+                peerConnections[peerId].close();
+                delete peerConnections[peerId];
+            }
+            if (remoteAudioElements[peerId]) {
+                remoteAudioElements[peerId].remove();
+                delete remoteAudioElements[peerId];
+            }
+        });
+
         function adjustVolume(val) {
-            const audios = document.querySelectorAll('audio');
-            audios.forEach(a => a.volume = val);
+            Object.values(remoteAudioElements).forEach(audio => audio.volume = val);
         }
 
         function sendSOS() {
@@ -407,16 +502,6 @@
 
         socket.on('update_commander_target', handleCommanderTarget);
         socket.on('set_commander_target', handleCommanderTarget);
-
-        // وەرگرتنی دەنگ بە شێوازی تەلەفۆنی بێ پچڕان
-        socket.on('receive_voice_stream', (audioChunk) => {
-            const blob = new Blob([audioChunk], { type: 'audio/webm' });
-            const audioUrl = URL.createObjectURL(blob);
-            const audio = new Audio(audioUrl);
-            const vol = document.getElementById('volControl').value;
-            audio.volume = vol;
-            audio.play().catch(e => console.log("لێدانی دەنگ سەرکەوتوو نەبوو", e));
-        });
 
         function addMessageToInbox(sender, text, type) {
             const inbox = document.getElementById('inboxList');
