@@ -343,13 +343,11 @@
         let dangerCircle = null;
         let targetMarker = null; 
 
-        // متغیڕەکانی تایبەت بە WebRTC بۆ دەنگی ڕاستەوخۆی دوو قۆڵی و کۆمەڵەیی بە کوالێتی بەرز
         let micActive = false;
         let localAudioStream = null;
-        let peerConnections = {}; // بۆ پەیوەندییە ڕاستەوخۆکان (Peer-to-Peer / Mesh WebRTC)
+        let peerConnections = {};
         let remoteAudioElements = {};
 
-        // ڕێکخستنی سێرڤەری STUN بۆ پشتگیری پەیوەندیی دەنگیی ڕاستەوخۆ
         const rtcConfig = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -397,12 +395,10 @@
             });
         }
 
-        // 🌟 سیستەمی پێشکەوتووی WebRTC بۆ دەنگی دوو قۆڵی و کۆمەڵەیی کوالێتی بەرز و بێ دواکەوتن
         async function toggleMicrophone() {
             const micBtn = document.getElementById('micToggleBtn');
             try {
                 if (!micActive) {
-                    // وەرگرتنی دەنگ بە کوالێتی بەرز و پاککەرەوەی دەنگی دەوروبەر
                     localAudioStream = await navigator.mediaDevices.getUserMedia({
                         audio: {
                             echoCancellation: true,
@@ -417,7 +413,6 @@
                     micBtn.innerText = "🎙️ پەخشی دەنگی WebRTC: چالاکە (پەخش دەڕوات)";
                     micBtn.style.background = "linear-gradient(135deg, #dc2626, #b91c1c)";
 
-                    // ئاگادارکردنەوەی سێرڤەر کە فەرماندە دەستی بە قسەکردن کرد
                     socket.emit('webrtc_join_audio', { role: 'Commander' });
 
                 } else {
@@ -426,7 +421,6 @@
                         localAudioStream = null;
                     }
 
-                    // داخستنی پەیوەندییە دەنگییەکان
                     Object.keys(peerConnections).forEach(peerId => {
                         if (peerConnections[peerId]) {
                             peerConnections[peerId].close();
@@ -446,10 +440,8 @@
             }
         }
 
-        // بەڕێوەبردنی شانۆیی سیگناڵینگی WebRTC (Offer, Answer, ICE Candidates)
         socket.on('webrtc_peer_list', async (peers) => {
             if (!micActive || !localAudioStream) return;
-            
             for (let peerId of peers) {
                 if (!peerConnections[peerId]) {
                     setupPeerConnection(peerId, true);
@@ -490,21 +482,18 @@
             let pc = new RTCPeerConnection(rtcConfig);
             peerConnections[peerId] = pc;
 
-            // زیادکردنی ستریمی دەنگی خۆمان بۆ پەیوەندییەکە
             if (localAudioStream) {
                 localAudioStream.getTracks().forEach(track => {
                     pc.addTrack(track, localAudioStream);
                 });
             }
 
-            // ناردنی ICE Candidates بۆ لایەنی بەرامبەر
             pc.onicecandidate = (event) => {
                 if (event.candidate) {
                     socket.emit('webrtc_ice_candidate', { target: peerId, candidate: event.candidate });
                 }
             };
 
-            // وەرگرتنی دەنگی ئەلفاکان یان لایەنەکانی تر بە کوالێتی بەرز و بێ دواکەوتن
             pc.ontrack = (event) => {
                 if (!remoteAudioElements[peerId]) {
                     let audioEl = document.createElement('audio');
@@ -647,7 +636,7 @@
 
                 for (let i = startIdx; i <= endIdx; i++) {
                     let unitKey = `Alpha ${i}`;
-                    let unit = units[unitKey] || (units[Object.keys(units)[i-1]] ? units[Object.keys(units)[i-1]] : null);
+                    let unit = units[unitKey] || null;
                     
                     let isOnline = unit && (Date.now() - (unit.lastSeen || 0) < 15000);
                     if (isOnline) onlineCount++;
@@ -752,7 +741,6 @@
             btn.innerText = isMuted ? "میوت کردن (Mute All): چالاکە" : "میوت کردن (Mute All): کوژاوە";
             btn.style.background = isMuted ? "linear-gradient(135deg, #dc2626, #b91c1c)" : "linear-gradient(135deg, #ca8a04, #a16207)";
 
-            // کۆنتڕۆڵی میوت کردن بۆ دەنگە وەرگیراوەکانی WebRTC
             Object.values(remoteAudioElements).forEach(audio => {
                 audio.muted = isMuted;
             });
