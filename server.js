@@ -18,6 +18,7 @@ app.get('/alpha.html', (req, res) => {
 });
 
 let units = {};
+let activeAudioPeers = []; // لیستی بەشداربووانی دەنگی WebRTC
 const VALID_KEYS = Array.from({ length: 30 }, (_, i) => `Alpha ${i + 1}`);
 
 io.on('connection', (socket) => {
@@ -91,7 +92,7 @@ io.on('connection', (socket) => {
     socket.on('set_commander_target', handleCommanderTarget);
     socket.on('president_target_location', handleCommanderTarget);
 
-    // 🎙️ ٧. گواستنەوەی دەنگ (Voice Stream) بە شێوازی پارچەی دەنگی گونجاو
+    // 🎙️ ٧. گواستنەوەی دەنگ (Voice Stream) کۆن و پشتگیری ڕەسەن
     socket.on('voice_stream', (audioChunk) => {
         socket.broadcast.emit('receive_voice_stream', audioChunk);
     });
@@ -106,12 +107,53 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('ice-candidate', data);
     });
 
-    // ❌ ٨. پچڕانی پەیوەندی
+    // 🌟 ٨. سیستەمی پێشکەوتووی WebRTC Signaling بۆ پەیوەندییە دەنگییە ڕاستەوخۆکان (P2P / Mesh)
+    socket.on('webrtc_join_audio', (data) => {
+        socket.peerRole = data.role || socket.id;
+        // ناردنی لیستی بەشداربووانی پێشوو بۆ ئەم ئامێرە نوێیە
+        let otherPeers = activeAudioPeers.filter(p => p.socketId !== socket.id).map(p => p.socketId);
+        socket.emit('webrtc_peer_list', otherPeers);
+
+        activeAudioPeers.push({ socketId: socket.id, role: socket.peerRole });
+    });
+
+    socket.on('webrtc_offer', (data) => {
+        io.to(data.target).emit('webrtc_offer', {
+            from: socket.id,
+            offer: data.offer
+        });
+    });
+
+    socket.on('webrtc_answer', (data) => {
+        io.to(data.target).emit('webrtc_answer', {
+            from: socket.id,
+            answer: data.answer
+        });
+    });
+
+    socket.on('webrtc_ice_candidate', (data) => {
+        io.to(data.target).emit('webrtc_ice_candidate', {
+            from: socket.id,
+            candidate: data.candidate
+        });
+    });
+
+    socket.on('webrtc_leave_audio', () => {
+        activeAudioPeers = activeAudioPeers.filter(p => p.socketId !== socket.id);
+        socket.broadcast.emit('webrtc_peer_disconnected', socket.id);
+    });
+
+    // ❌ ٩. پچڕانی پەیوەندی گشتی
     socket.on('disconnect', () => {
         if (socket.alphaName && units[socket.alphaName]) {
             delete units[socket.alphaName];
             io.emit('updateUnitsList', units);
         }
+        
+        // پاککردنەوەی WebRTC ئەگەر لە پەیوەندی دەنگیدابوو
+        activeAudioPeers = activeAudioPeers.filter(p => p.socketId !== socket.id);
+        socket.broadcast.emit('webrtc_peer_disconnected', socket.id);
+
         console.log('❌ ئامێرێک پچڕا:', socket.id);
     });
 });
