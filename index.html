@@ -30,26 +30,9 @@
             overflow: hidden;
         }
 
-        /* 🌟 شاهانەترین ستایلی ئامرازەکانی کێشان (Royal Draw Tools) */
+        /* چارەسەری کێشەی ڕەشی ئامرازەکانی کێشان */
         .leaflet-draw-toolbar a {
-            background: linear-gradient(135deg, var(--panel-bg), #020617) !important;
-            color: var(--gold-accent) !important;
-            border: 1px solid var(--gold-accent) !important;
-            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3) !important;
-            border-radius: 6px !important;
-            margin-bottom: 4px !important;
-            transition: all 0.3s ease !important;
-        }
-        .leaflet-draw-toolbar a:hover {
-            background: var(--gold-accent) !important;
-            color: #030712 !important;
-            transform: scale(1.1);
-            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.6) !important;
-        }
-        .leaflet-draw-actions {
-            background: var(--panel-bg) !important;
-            border: 1px solid var(--gold-accent) !important;
-            border-radius: 6px !important;
+            background-image: url('https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/images/spritesheet.png') !important;
         }
 
         #auth-overlay {
@@ -383,7 +366,6 @@
         let dangerCircle = null;
         let targetMarker = null; 
         
-        // 🌟 گۆڕاوەکانی ڕێگای شین و ڕادار
         let currentRouteLayer = null;
         let radarActive = false;
         let flightsLayer = L.layerGroup();
@@ -459,7 +441,7 @@
             }
         }
 
-        // 🌟 دروستکردنی ڕێڕەوی شین کاتێک فەرماندە کلیک دەکات
+        // 🌟 دروستکردنی خەتێکی ڕاست و ڕەوان (Tactical Line) لە جیاتی ڕێگای پێچاوپێچ
         map.on('click', function(e) {
             if (isDrawing || e.originalEvent.target.closest('.leaflet-draw')) return;
             
@@ -473,25 +455,21 @@
             targetMarker = L.marker([lat, lon]).addTo(map)
                 .bindPopup("🎯 ئامانجی دیاریکراوی فەرماندە").openPopup();
 
-            // دروستکردنی ڕێگای شین لە شوێنی فەرماندەوە بۆ ئامانج
             if (myLocationMarker) {
                 let start = myLocationMarker.getLatLng();
-                fetch(`https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${lon},${lat}?geometries=geojson`)
-                .then(res => res.json())
-                .then(routeData => {
-                    if(routeData.routes && routeData.routes[0]) {
-                        if (currentRouteLayer) map.removeLayer(currentRouteLayer);
-                        let outline = L.geoJSON(routeData.routes[0].geometry, { style: { color: '#000000', weight: 8, opacity: 0.8 } });
-                        let inline = L.geoJSON(routeData.routes[0].geometry, { style: { color: '#3b82f6', weight: 4, opacity: 1 } });
-                        currentRouteLayer = L.layerGroup([outline, inline]).addTo(map);
-                    }
-                }).catch(err => console.log('کێشەی ڕێگا'));
+                if (currentRouteLayer) map.removeLayer(currentRouteLayer);
+                
+                // خەتێکی ڕاست و دروستی سەربازی دوور لە کێشەی (گۆگڵ ماپ)
+                let outline = L.polyline([start, [lat, lon]], { color: '#000000', weight: 6, opacity: 0.8 });
+                let inline = L.polyline([start, [lat, lon]], { color: '#3b82f6', weight: 3, opacity: 1, dashArray: '10, 10' });
+                
+                currentRouteLayer = L.layerGroup([outline, inline]).addTo(map);
             }
 
             socket.emit('set_commander_target', { lat: lat, lon: lon });
         });
 
-        // 🌟 کۆدی تایبەت بە سیستەمی ڕادار
+        // 🌟 ڕادار بە سەدا سەد ڕاستەقینە کرا و سیمولەیشن سڕایەوە
         function toggleRadar() {
             radarActive = !radarActive;
             const btn = document.getElementById('radarToggleBtn');
@@ -500,7 +478,7 @@
                 btn.style.background = "linear-gradient(135deg, #10b981, #059669)";
                 btn.style.color = "white";
                 map.addLayer(flightsLayer);
-                drawSimulatedFlights(); 
+                fetchRadarData(); 
             } else {
                 btn.innerText = "📡 سیستەمی رادار: ۆف";
                 btn.style.background = "linear-gradient(135deg, #475569, #334155)";
@@ -511,28 +489,10 @@
             }
         }
 
-        function drawSimulatedFlights() {
-            flightsLayer.clearLayers();
+        function fetchRadarData() {
             let bounds = map.getBounds();
-            let latDiff = bounds.getNorth() - bounds.getSouth();
-            let lonDiff = bounds.getEast() - bounds.getWest();
             
-            // دروستکردنی چەند خەتێکی فڕین بۆ دڵنیایی کارکردنی شاز
-            for(let i=0; i<3; i++) {
-                let startLat = bounds.getSouth() + Math.random() * latDiff;
-                let startLon = bounds.getWest() - (lonDiff * 0.5);
-                let endLat = bounds.getNorth() - Math.random() * latDiff;
-                let endLon = bounds.getEast() + (lonDiff * 0.5);
-                
-                let path = [[startLat, startLon], [endLat, endLon]];
-                L.polyline(path, { color: '#00ffcc', weight: 2, dashArray: '5, 10', opacity: 0.7 }).addTo(flightsLayer);
-                
-                let planeIcon = L.divIcon({ className: '', html: '<div style="font-size:20px; text-shadow: 0 0 5px #00ffcc; transform: rotate(45deg);">✈️</div>', iconSize:[20,20] });
-                L.marker([startLat, startLon], {icon: planeIcon}).addTo(flightsLayer)
-                 .bindPopup("گەشتی ئاسمانی (ڕادار)");
-            }
-            
-            // هەوڵدان بۆ هێنانی داتای ڕاستەقینەی تەیارەکان
+            // تەنیا داتای لایڤ و ڕاستەقینە دەهێنێت لە ئاسمان
             fetch(`https://opensky-network.org/api/states/all?lamin=${bounds.getSouth() - 1}&lomin=${bounds.getWest() - 1}&lamax=${bounds.getNorth() + 1}&lomax=${bounds.getEast() + 1}`)
             .then(res => res.json())
             .then(data => {
@@ -548,13 +508,13 @@
                                 iconSize: [24, 24], iconAnchor: [12, 12]
                             });
                             L.marker([lat, lon], {icon: icon}).addTo(flightsLayer)
-                            .bindPopup(`گەشتی ژمارە: ${flight[1] || 'نەزانراو'}<br>بەرزی: ${flight[7] || 0}م`);
+                            .bindPopup(`گەشتی ڕاستەقینە: ${flight[1] || 'نەزانراو'}<br>بەرزی: ${flight[7] || 0}م`);
                         }
                     });
                 }
             }).catch(() => {});
             
-            if(!radarInterval) radarInterval = setInterval(drawSimulatedFlights, 10000);
+            if(!radarInterval) radarInterval = setInterval(fetchRadarData, 10000);
         }
 
         function changeVolume(val) {
