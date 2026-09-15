@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>هێزی ئەلفا - ئۆپەراسیۆنی مەیدانی</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
     <style>
         :root {
             --bg-deep: #0f172a; 
@@ -24,7 +26,7 @@
 
         #auth-video {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover; z-index: -1; opacity: 0.4;
+            object-fit: cover; z-index: -1; opacity: 0.3;
         }
 
         #auth-overlay {
@@ -33,14 +35,14 @@
             display: flex; justify-content: center; align-items: center;
         }
         
-        .auth-box {
-            background: rgba(30, 41, 59, 0.6);
+        .glass-panel {
+            background: var(--panel-bg);
             backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             padding: 40px; width: 420px; text-align: center; border-radius: 16px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }
-        .auth-box h2 { color: var(--text-main); font-size: 22px; margin-bottom: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .glass-panel h2 { color: var(--text-main); font-size: 22px; margin-bottom: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
         
         .input-group { margin-bottom: 20px; text-align: right; }
         .input-group label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 8px; }
@@ -49,6 +51,13 @@
             color: white; border-radius: 8px; font-size: 15px; text-align: center; outline: none; transition: 0.3s;
         }
         .input-group input:focus { border-color: var(--primary-blue); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); }
+        
+        .btn {
+            background: rgba(255,255,255,0.05); color: var(--text-main);
+            border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; cursor: pointer;
+            font-size: 13px; width: 100%; font-weight: bold; transition: all 0.2s;
+        }
+        .btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-1px); }
 
         #main-app { display: none; padding: 15px; max-width: 520px; margin: auto; position: relative; z-index: 10; }
         
@@ -74,13 +83,6 @@
         .radio-controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
 
         .volume-box { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-main); }
-
-        .btn {
-            background: rgba(255,255,255,0.05); color: var(--text-main);
-            border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; cursor: pointer;
-            font-size: 13px; width: 100%; font-weight: bold; transition: all 0.2s;
-        }
-        .btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-1px); }
 
         .btn-sos { background: var(--danger-red); border: none; margin-top: 5px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
         .btn-sos:hover { background: #dc2626; }
@@ -130,6 +132,7 @@
         input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--primary-blue); cursor: pointer; margin-top: -6px; box-shadow: 0 0 10px rgba(59,130,246,0.5); }
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; }
+        .arrow-marker { background: transparent; border: none; }
     </style>
 </head>
 <body>
@@ -168,7 +171,7 @@
         </div>
 
         <div class="panel-box volume-box">
-            <label for="volControl">🔊 ئاستی دەنگ:</label>
+            <label for="volControl">🔊 ئاستی دەنگی بێسیم:</label>
             <input type="range" id="volControl" min="0" max="1" step="0.1" value="1" onchange="adjustVolume(this.value)">
         </div>
 
@@ -291,18 +294,20 @@
                 let lon = position.coords.longitude;
                 let heading = position.coords.heading || 0;
 
+                // فلتەری لۆکەیشن نەرم کراوە
                 if (accuracy > 100) {
                     displayEl.innerText = `⚠️ سیگناڵ لاوازە (${Math.round(accuracy)}م)...`;
                 }
 
+                // 🌟 چارەسەری MGRS
                 try {
-                    currentMGRS = mgrs.forward([lon, lat], 5);
+                    currentMGRS = mgrs.forward([Number(lon), Number(lat)], 5);
                     displayEl.innerText = `📍 MGRS: ${currentMGRS}`;
                 } catch(e) {
                     displayEl.innerText = `📍 MGRS: CALC_ERROR`;
                 }
 
-                // 🌟 ئایکۆنی کڵاوی سەربازی (🪖) بەکارخرا
+                // 🌟 ئایکۆنی کڵاوی سەربازی (🪖) بۆ ئەلفا خۆی
                 if (!userMarker) {
                     let userIcon = L.divIcon({ className: 'arrow-marker', html: '<div style="font-size: 26px; filter: drop-shadow(0 0 8px #3b82f6);">🪖</div>', iconSize: [26, 26], iconAnchor: [13, 13] });
                     userMarker = L.marker([lat, lon], { icon: userIcon }).addTo(map).bindPopup(`<b>${currentUnitName} (تۆ)</b>`).openPopup();
@@ -319,12 +324,14 @@
                     id: currentUnitName, lat: lat, lon: lon, heading: heading, status: 'ئامادەباش', lastSeen: Date.now()
                 });
 
-                fetchWeather(lat, lon);
+                // تەنیا ئەگەر زۆر پێویست بوو بانگی بکە
+                // fetchWeather(lat, lon);
             }, (error) => {
                 document.getElementById('statusText').innerText = 'هەڵە لە وەرگرتنی GPS!';
             }, tacticalOptions);
         }
 
+        // کەشوهەوا لە کاتی پێویست
         function fetchWeather(lat, lon) {
             fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`)
                 .then(r => r.json())
@@ -371,10 +378,10 @@
             
             const micBtn = document.getElementById('micToggleBtn');
             if (micActive) {
-                micBtn.innerText = "🎙️ مایک: ON";
+                micBtn.innerText = "🎙️ مایک: کراوەتەوە";
                 micBtn.className = "btn btn-mic-on";
             } else {
-                micBtn.innerText = "🎙️ مایک: OFF";
+                micBtn.innerText = "🎙️ مایک: داخراوە";
                 micBtn.className = "btn btn-mic-off";
             }
         }
@@ -383,11 +390,11 @@
             speakerActive = !speakerActive;
             const spkBtn = document.getElementById('speakerToggleBtn');
             if (speakerActive) {
-                spkBtn.innerText = "🔊 گوێگرتن: ON";
+                spkBtn.innerText = "🔊 گوێگرتن: کراوەتەوە";
                 spkBtn.className = "btn btn-speaker-on";
                 Object.values(remoteAudioElements).forEach(a => a.muted = false);
             } else {
-                spkBtn.innerText = "🔇 گوێگرتن: OFF";
+                spkBtn.innerText = "🔇 گوێگرتن: داخراوە";
                 spkBtn.className = "btn btn-speaker-off";
                 Object.values(remoteAudioElements).forEach(a => a.muted = true);
             }
