@@ -343,7 +343,6 @@
             }, tacticalOptions);
         }
 
-        // 🌟 زیادکردنی خێرایی با (km/h) بێ دەستکاریکردنی شتەکانی تر
         function fetchWeather(lat, lon) {
             fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`)
                 .then(r => r.json())
@@ -362,7 +361,7 @@
             }
         }
         
-        // 🌟 کۆدی ڕادار بۆ ئەلفاش هەمان شتە
+        // 🌟 ڕادار تەنیا داتای لایڤ و ڕاستەقینە
         function toggleRadar() {
             radarActive = !radarActive;
             const btn = document.getElementById('radarToggleBtn');
@@ -371,7 +370,7 @@
                 btn.style.background = "linear-gradient(135deg, #10b981, #059669)";
                 btn.style.color = "white";
                 map.addLayer(flightsLayer);
-                drawSimulatedFlights(); 
+                fetchRadarData(); 
             } else {
                 btn.innerText = "📡 سیستەمی رادار: ۆف";
                 btn.style.background = "linear-gradient(135deg, #475569, #334155)";
@@ -382,25 +381,8 @@
             }
         }
 
-        function drawSimulatedFlights() {
-            flightsLayer.clearLayers();
+        function fetchRadarData() {
             let bounds = map.getBounds();
-            let latDiff = bounds.getNorth() - bounds.getSouth();
-            let lonDiff = bounds.getEast() - bounds.getWest();
-            
-            for(let i=0; i<3; i++) {
-                let startLat = bounds.getSouth() + Math.random() * latDiff;
-                let startLon = bounds.getWest() - (lonDiff * 0.5);
-                let endLat = bounds.getNorth() - Math.random() * latDiff;
-                let endLon = bounds.getEast() + (lonDiff * 0.5);
-                
-                let path = [[startLat, startLon], [endLat, endLon]];
-                L.polyline(path, { color: '#00ffcc', weight: 2, dashArray: '5, 10', opacity: 0.7 }).addTo(flightsLayer);
-                
-                let planeIcon = L.divIcon({ className: '', html: '<div style="font-size:20px; text-shadow: 0 0 5px #00ffcc; transform: rotate(45deg);">✈️</div>', iconSize:[20,20] });
-                L.marker([startLat, startLon], {icon: planeIcon}).addTo(flightsLayer)
-                 .bindPopup("گەشتی ئاسمانی (ڕادار)");
-            }
             
             fetch(`https://opensky-network.org/api/states/all?lamin=${bounds.getSouth() - 1}&lomin=${bounds.getWest() - 1}&lamax=${bounds.getNorth() + 1}&lomax=${bounds.getEast() + 1}`)
             .then(res => res.json())
@@ -417,13 +399,13 @@
                                 iconSize: [24, 24], iconAnchor: [12, 12]
                             });
                             L.marker([lat, lon], {icon: icon}).addTo(flightsLayer)
-                            .bindPopup(`گەشتی ژمارە: ${flight[1] || 'نەزانراو'}<br>بەرزی: ${flight[7] || 0}م`);
+                            .bindPopup(`گەشتی ڕاستەقینە: ${flight[1] || 'نەزانراو'}<br>بەرزی: ${flight[7] || 0}م`);
                         }
                     });
                 }
             }).catch(() => {});
             
-            if(!radarInterval) radarInterval = setInterval(drawSimulatedFlights, 10000);
+            if(!radarInterval) radarInterval = setInterval(fetchRadarData, 10000);
         }
 
         async function initWebRTC() {
@@ -605,7 +587,7 @@
             addMessageToInbox(data.sender, data.text, 'normal');
         });
 
-        // 🌟 دروستکردنی ڕێگای شین کاتێک فەرماندە ئامانج دیاری دەکات
+        // 🌟 دروستکردنی خەتێکی ڕاست و ڕەوان (Tactical Line) بۆ دیاریکردنی ئامانج
         const handleCommanderTarget = (data) => {
             if (targetMarker) map.removeLayer(targetMarker);
             targetMarker = L.marker([data.lat, data.lon], {
@@ -616,26 +598,14 @@
 
             if (userMarker) {
                 let start = userMarker.getLatLng();
-                // هێنانی داتای ڕێگا لە OSRM API بەخۆڕایی
-                fetch(`https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${data.lon},${data.lat}?geometries=geojson`)
-                    .then(res => res.json())
-                    .then(routeData => {
-                        if(routeData.routes && routeData.routes[0]) {
-                            if (currentRouteLayer) map.removeLayer(currentRouteLayer);
-                            
-                            // هێڵی دەرەوەی ڕەش بۆ جوانی زیاتر (وەک وێنەکەت)
-                            let outline = L.geoJSON(routeData.routes[0].geometry, { style: { color: '#000000', weight: 8, opacity: 0.8 } });
-                            // هێڵی ناوەوەی شین (رێگاکە)
-                            let inline = L.geoJSON(routeData.routes[0].geometry, { style: { color: '#3b82f6', weight: 4, opacity: 1 } });
-                            
-                            currentRouteLayer = L.layerGroup([outline, inline]).addTo(map);
-                            map.fitBounds(currentRouteLayer.getBounds(), { padding: [30, 30] });
-                        } else {
-                            map.setView([data.lat, data.lon], 16);
-                        }
-                    }).catch(e => {
-                        map.setView([data.lat, data.lon], 16);
-                    });
+                if (currentRouteLayer) map.removeLayer(currentRouteLayer);
+                
+                // کێشانی خەتێکی ڕاستەوخۆ بێ پشت بەستن بە (OSRM) کە کێشەی هەیە لە عێراق
+                let outline = L.polyline([start, [data.lat, data.lon]], { color: '#000000', weight: 6, opacity: 0.8 });
+                let inline = L.polyline([start, [data.lat, data.lon]], { color: '#3b82f6', weight: 3, opacity: 1, dashArray: '10, 10' });
+                
+                currentRouteLayer = L.layerGroup([outline, inline]).addTo(map);
+                map.fitBounds(currentRouteLayer.getBounds(), { padding: [30, 30] });
             } else {
                 map.setView([data.lat, data.lon], 16);
             }
