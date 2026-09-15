@@ -170,7 +170,6 @@
 
         <div id="map"></div>
 
-        <!-- 🌟 دوگمەکانی کۆنتڕۆڵی مایک و ڕادار بۆ ئەلفا -->
         <div class="radio-controls-grid">
             <button class="btn btn-mic-off" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ مایک: داخراوە</button>
             <button class="btn btn-speaker-on" id="speakerToggleBtn" onclick="toggleSpeaker()">🔊 گوێگرتن: کراوەتەوە</button>
@@ -217,7 +216,6 @@
         let watchId = null;
         let unreadCount = 0;
 
-        // 🌟 گۆڕاوەکانی ڕێگای شین و ڕادار بۆ ئەلفا
         let currentRouteLayer = null;
         let radarActive = false;
         let flightsLayer = L.layerGroup();
@@ -235,6 +233,9 @@
                 { urls: 'stun:stun1.l.google.com:19302' }
             ]
         };
+
+        // 🌟 گۆڕاوی وەرگرتنی هێڵکارییەکانی فەرماندە بۆ ئەلفا
+        let drawnItems = new L.FeatureGroup();
 
         function login() {
             const key = document.getElementById('api-key-input').value.trim();
@@ -272,6 +273,9 @@
                 maxNativeZoom: 18,
                 opacity: 0.8
             }).addTo(map);
+
+            // 🌟 زیادکردنی لایەری وێنەکێشانەکانی فەرماندە بۆ نەخشەی ئەلفا
+            map.addLayer(drawnItems);
         }
 
         async function requestPermissions() {
@@ -361,7 +365,6 @@
             }
         }
         
-        // 🌟 ڕادار تەنیا داتای لایڤ و ڕاستەقینە
         function toggleRadar() {
             radarActive = !radarActive;
             const btn = document.getElementById('radarToggleBtn');
@@ -587,7 +590,25 @@
             addMessageToInbox(data.sender, data.text, 'normal');
         });
 
-        // 🌟 دروستکردنی خەتێکی ڕاست و ڕەوان (Tactical Line) بۆ دیاریکردنی ئامانج
+        // 🌟 وەرگرتنی هێڵکارییەکان (بازنە، چوارگۆشە، هێڵ) لە فەرماندەوە بۆ نەخشەی ئەلفا
+        socket.on('tactical_draw', (data) => {
+            let layer; 
+            const style = { color: '#3b82f6', weight: 3, opacity: 0.9, fillColor: '#3b82f6', fillOpacity: 0.25 };
+            
+            if (data.type === 'circle') layer = L.circle(data.latlng, { radius: data.radius, ...style });
+            else if (data.type === 'polygon') layer = L.polygon(data.latlngs, style);
+            else if (data.type === 'polyline') layer = L.polyline(data.latlngs, style);
+            else if (data.type === 'rectangle') layer = L.rectangle(data.latlngs, style);
+            else if (data.type === 'marker') layer = L.marker(data.latlng);
+            
+            if(layer) drawnItems.addLayer(layer);
+        });
+
+        // 🌟 سڕینەوەی وێنەکان کاتێک فەرماندە دەیانسڕێتەوە
+        socket.on('tactical_draw_clear', () => {
+            drawnItems.clearLayers();
+        });
+
         const handleCommanderTarget = (data) => {
             if (targetMarker) map.removeLayer(targetMarker);
             targetMarker = L.marker([data.lat, data.lon], {
@@ -600,7 +621,6 @@
                 let start = userMarker.getLatLng();
                 if (currentRouteLayer) map.removeLayer(currentRouteLayer);
                 
-                // کێشانی خەتێکی ڕاستەوخۆ بێ پشت بەستن بە (OSRM) کە کێشەی هەیە لە عێراق
                 let outline = L.polyline([start, [data.lat, data.lon]], { color: '#000000', weight: 6, opacity: 0.8 });
                 let inline = L.polyline([start, [data.lat, data.lon]], { color: '#3b82f6', weight: 3, opacity: 1, dashArray: '10, 10' });
                 
