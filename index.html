@@ -242,7 +242,7 @@
 
             <button class="btn btn-my-location" style="background:rgba(59,130,246,0.1); color:var(--primary-blue); border-color:var(--primary-blue);" onclick="goToMyLocation()">📍 دیاریکردنی پێگەی من</button>
 
-            <!-- 🌟 کۆنتڕۆڵی ڕادار بۆ فەرماندە -->
+            <!-- کۆنتڕۆڵی ڕادار بۆ فەرماندە -->
             <div class="radio-controls-grid">
                 <button class="btn btn-mic-off" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ مایک: OFF</button>
                 <button class="btn btn-speaker-on" id="speakerToggleBtn" onclick="toggleSpeaker()">🔊 گوێگرتن: ON</button>
@@ -281,6 +281,9 @@
         </div>
 
         <div id="map-container">
+            <!-- 🌟 بۆ چارەسەری کێشەی کێشانی بازنە، دەکەینە dir="ltr" بۆ ئەوەی ڕێڕەوی ماوس ڕاست بێت -->
+            <div id="map" dir="ltr" style="width: 100%; height: 100%;"></div>
+            
             <div id="top-dashboard-bar" class="glass-panel">
                 <span id="mgrsCode">MGRS: جێگیرکردن...</span> 
                 <span style="opacity:0.3;">|</span>
@@ -288,14 +291,13 @@
                 <span style="opacity:0.3;">|</span>
                 <div class="weather-badge" id="weatherWidget">☁️ کەشوهەوا: خوێندنەوە...</div>
             </div>
-            <div id="map"></div>
         </div>
     </div>
 
-    <!-- سکریپتەکان -->
+    <!-- سکریپتەکان بە لینکی دڵنیاییەوە -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mgrs/1.0.0/mgrs.min.js"></script>
+    <script src="https://unpkg.com/mgrs@1.0.0/dist/mgrs.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     
     <script>
@@ -318,8 +320,8 @@
                 document.getElementById('container').style.display = 'flex';
                 setTimeout(() => { 
                     map.invalidateSize(); 
-                    let center = map.getCenter();
-                    updateMapInfo(center.lat, center.lng);
+                    // 🌟 چارەسەری کێشەی نەبوونی فەرماندە: ڕاستەوخۆ شوێنەکە دروست دەکات کاتێک دەچێتە ژوورەوە
+                    goToMyLocation();
                 }, 300);
                 initWebRTC(); 
             } else {
@@ -347,7 +349,6 @@
         let dangerCircle = null;
         let targetMarker = null; 
 
-        // گۆڕاوەکانی ڕادار ✈️
         let aircraftMarkers = {};
         let radarInterval = null;
         let radarActive = false;
@@ -370,7 +371,7 @@
         });
         map.addControl(drawControl);
 
-        // 🌟 ڕێگریکردن لەوەی کاتی کێشانی بازنە تێکەڵ بێت لەگەڵ کلیکی ئامانج
+        // 🌟 ڕێگریکردن لە تێکەڵبوونی کێشانی بازنە و دانانی ئامانج
         let isDrawing = false;
         map.on('draw:drawstart', function () { isDrawing = true; });
         map.on('draw:drawstop', function () { setTimeout(() => { isDrawing = false; }, 200); });
@@ -408,7 +409,7 @@
         }
 
         map.on('click', function(e) {
-            // 🌟 ئەگەر خەریکی کێشانی نەخشە بوو (وەک بازنە)، با ئامانجەکە دانەنێت
+            // 🌟 ئەگەر خەریکی کێشانی بازنە بیت، ئامانج دانانێت تا کێشانەکە تەواو دەبێت
             if(isDrawing || e.originalEvent.target.closest('.leaflet-draw')) return;
             const lat = e.latlng.lat;
             const lon = e.latlng.lng;
@@ -598,10 +599,10 @@
             if (remoteAudioElements[peerId]) { remoteAudioElements[peerId].remove(); delete remoteAudioElements[peerId]; }
         });
 
-        // 🌟 گەڕاندنەوەی بازنە شینەکەی فەرماندە
+        // 🌟 دروستکردنی بازنەی شینی فەرماندە وەک داوات کرد
         function createDangerCircle(lat, lng) {
             if (dangerCircle) map.removeLayer(dangerCircle);
-            dangerCircle = L.circle([lat, lng], { color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.35, radius: 800 }).addTo(map).bindPopup('<b>بازنەی فەرماندەیی (لەبەرەی پارێزراو دوور مەکەونەوە)</b>');
+            dangerCircle = L.circle([lat, lng], { color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.15, radius: 800 }).addTo(map).bindPopup('<b>بازنەی فەرماندەیی (لەبەرەی پارێزراو دوور مەکەونەوە)</b>');
         }
 
         map.on('moveend', function() {
@@ -609,14 +610,13 @@
             updateMapInfo(center.lat, center.lng);
         });
 
-        // 🌟 چارەسەری یەکجاری بۆ MGRS بەوەی دەیکەینە Number
+        // 🌟 چارەسەری یەکجاری بۆ MGRS بە شێوەیەکی پارێزراو بۆ ئەوەی هەرگیز ئیرۆر نەدات
         function updateMapInfo(lat, lon) {
             try {
-                let mgrsStr = typeof mgrs !== 'undefined' ? mgrs.forward([Number(lon), Number(lat)], 5) : "ئۆفلاین";
+                let mgrsStr = mgrs.forward([Number(lon), Number(lat)], 5);
                 document.getElementById('mgrsCode').innerText = `MGRS: ${mgrsStr}`;
             } catch(e) {
                 document.getElementById('mgrsCode').innerText = "MGRS: ERROR";
-                console.error("MGRS Error: ", e);
             }
             document.getElementById('coordDisplay').innerText = `LAT: ${Number(lat).toFixed(5)} | LNG: ${Number(lon).toFixed(5)}`;
 
@@ -699,7 +699,7 @@
                         </div>
                     `;
 
-                    // 🌟 گەڕاندنەوەی بۆ تیرەکەی جاران (➤) وەک خۆت داوات کرد
+                    // 🌟 گەڕاندنەوەی بۆ تیرەکەی جاران (➤) ڕێک وەک خۆت داوات کرد
                     if (unit && unit.lat && unit.lon) {
                         let rot = unit.heading || 0;
                         let color = isSos ? '#ef4444' : (isOnline ? '#3b82f6' : '#475569');
