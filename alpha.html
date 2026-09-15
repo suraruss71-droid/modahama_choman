@@ -206,7 +206,7 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         const socket = io();
-        let map, userMarker, targetMarker;
+        let map, userMarker, targetMarker, drawnItems;
         let currentUnitName = "";
         let watchId = null;
         let unreadCount = 0;
@@ -261,7 +261,29 @@
                 maxNativeZoom: 18,
                 opacity: 0.8
             }).addTo(map);
+
+            // 🌟 وەرگرتنی نەخشە و پلانی تاکتیکی فەرماندە
+            drawnItems = new L.FeatureGroup();
+            map.addLayer(drawnItems);
         }
+
+        socket.on('tactical_draw', (data) => {
+            if (!drawnItems) return;
+            let layer;
+            if (data.type === 'circle') {
+                layer = L.circle(data.latlng, { radius: data.radius, color: '#f59e0b', weight: 3 });
+            } else if (data.type === 'polygon' || data.type === 'rectangle') {
+                layer = L.polygon(data.latlngs, { color: '#f59e0b', weight: 3 });
+            } else if (data.type === 'polyline') {
+                layer = L.polyline(data.latlngs, { color: '#f59e0b', weight: 3 });
+            } else if (data.type === 'marker') {
+                layer = L.marker(data.latlng);
+            }
+
+            if (layer) {
+                drawnItems.addLayer(layer);
+            }
+        });
 
         async function requestPermissions() {
             try {
@@ -375,6 +397,7 @@
             }
         }
 
+        // بەڕێوەبردنی شانۆیی سیگناڵینگی WebRTC (Offer, Answer, ICE Candidates)
         socket.on('webrtc_peer_list', async (peers) => {
             if (!localAudioStream) return;
             for (let peerId of peers) {
@@ -406,7 +429,7 @@
                 try {
                     await peerConnections[from].addIceCandidate(new RTCIceCandidate(candidate));
                 } catch (e) {
-                    console.error('Error adding ice candidate', e);
+                    console.error('Error adding received ice candidate', e);
                 }
             }
         });
