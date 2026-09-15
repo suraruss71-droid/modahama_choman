@@ -366,6 +366,7 @@
         let dangerCircle = null;
         let targetMarker = null; 
         
+        // 🌟 گۆڕاوەکانی ڕێگای شین و ڕادار
         let currentRouteLayer = null;
         let radarActive = false;
         let flightsLayer = L.layerGroup();
@@ -404,9 +405,16 @@
             map.dragging.enable(); 
         });
 
+        // 🌟 زیادکردنی سیڤکردنی جۆری وێنەکە بۆ ئەوەی لە کاتی سڕینەوە ئەلفاش ئاگادار بێت
         map.on(L.Draw.Event.CREATED, function (event) {
             let layer = event.layer;
             let type = event.layerType;
+            
+            // هەڵگرتنی جۆری وێنەکە لەناو خودی فۆرمەکە بۆ کاتی سڕینەوە
+            layer.feature = layer.feature || {};
+            layer.feature.properties = layer.feature.properties || {};
+            layer.feature.properties.type = type;
+
             drawnItems.addLayer(layer);
             
             let dataToSend = { type: type };
@@ -419,6 +427,26 @@
                 dataToSend.latlng = layer.getLatLng();
             }
             socket.emit('tactical_draw', dataToSend);
+        });
+
+        // 🌟 ناردنی فەرمان بۆ سڕینەوە و دووبارە ناردنەوەی وێنەکان بۆ ئەلفا لە کاتی بەکارهێنانی ئامرازی سڕینەوە
+        map.on('draw:deleted', function(e) {
+            socket.emit('tactical_draw_clear'); // سڕینەوەی گشت وێنەکان لای ئەلفا
+            
+            // ناردنەوەی ئەو وێنانەی کە نەِسڕاونەتەوە و ماونەتەوە
+            drawnItems.eachLayer(function(layer) {
+                let type = layer.feature && layer.feature.properties ? layer.feature.properties.type : 'marker';
+                let dataToSend = { type: type };
+                if (type === 'circle') {
+                    dataToSend.latlng = layer.getLatLng();
+                    dataToSend.radius = layer.getRadius();
+                } else if (type === 'polygon' || type === 'rectangle' || type === 'polyline') {
+                    dataToSend.latlngs = layer.getLatLngs();
+                } else if (type === 'marker') {
+                    dataToSend.latlng = layer.getLatLng();
+                }
+                socket.emit('tactical_draw', dataToSend);
+            });
         });
 
         function playAlarmSound() {
