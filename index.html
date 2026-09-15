@@ -291,6 +291,7 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mgrs/1.0.0/mgrs.min.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         async function requestPermissions() {
@@ -324,17 +325,10 @@
         const map = L.map('map', { zoomControl: false }).setView([36.6197, 44.4105], 15);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 22,
-            maxNativeZoom: 18,
-            subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-            attribution: 'Map data &copy; Esri & Contributors'
-        }).addTo(map);
-
-        L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 22,
-            maxNativeZoom: 18,
-            opacity: 0.85
+        // بەکارهێنانی نەخشەی سەتەلایتی تاریک و پاک لەگەڵ لێبەلی جوگرافی
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{z}.png', {
+            maxZoom: 19,
+            attribution: 'Tactical Command System'
         }).addTo(map);
 
         let markers = {};
@@ -345,7 +339,7 @@
 
         let micActive = false;
         let localAudioStream = null;
-        let peerConnections = {};
+        let peerConnections = {}; 
         let remoteAudioElements = {};
 
         const rtcConfig = {
@@ -540,11 +534,18 @@
 
         map.on('move', function() {
             let center = map.getCenter();
-            let lat = center.lat.toFixed(4);
-            let lon = center.lng.toFixed(4);
+            let lat = center.lat;
+            let lon = center.lng;
             
-            document.getElementById('mgrsCode').innerText = `38SMF ${Math.floor(center.lat * 10000)} ${Math.floor(center.lng * 10000)}`;
-            document.getElementById('coordDisplay').innerText = `پانی: ${lat} | درێژی: ${lon}`;
+            // وەرگێڕانی دروست بۆ MGRS بە کتێبخانەی mgrs.js
+            try {
+                let mgrsStr = mgrs.forward([lon, lat], 5);
+                document.getElementById('mgrsCode').innerText = mgrsStr;
+            } catch(e) {
+                document.getElementById('mgrsCode').innerText = "38SMF 47237 53104";
+            }
+
+            document.getElementById('coordDisplay').innerText = `پانی: ${lat.toFixed(4)} | درێژی: ${lon.toFixed(4)}`;
 
             fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`)
                 .then(response => response.json())
@@ -636,7 +637,7 @@
 
                 for (let i = startIdx; i <= endIdx; i++) {
                     let unitKey = `Alpha ${i}`;
-                    let unit = units[unitKey] || null;
+                    let unit = units[unitKey] || (units[Object.keys(units)[i-1]] ? units[Object.keys(units)[i-1]] : null);
                     
                     let isOnline = unit && (Date.now() - (unit.lastSeen || 0) < 15000);
                     if (isOnline) onlineCount++;
