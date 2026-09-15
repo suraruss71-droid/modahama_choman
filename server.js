@@ -5,8 +5,10 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
 
+// پێشاندانی فایلەکان لە فۆڵدەری سەرەکی 📁
 app.use(express.static(__dirname));
 
+// ڕێڕەوی ڕاستەوخۆ بۆ دڵنیابوون لە کارکردنی فایلەکان 🌐
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
@@ -16,12 +18,13 @@ app.get('/alpha.html', (req, res) => {
 });
 
 let units = {};
-let activeAudioPeers = []; 
+let activeAudioPeers = []; // لیستی بەشداربووانی دەنگی WebRTC
 const VALID_KEYS = Array.from({ length: 30 }, (_, i) => `Alpha ${i + 1}`);
 
 io.on('connection', (socket) => {
     console.log('⚡ ئامێرێکی نوێ بەستراوەتەوە:', socket.id);
 
+    // 🎖️ ١. تۆمارکردنی هێزەکانی ئەلفا
     socket.on('register_alpha', (data) => {
         if (VALID_KEYS.includes(data.apiKey)) {
             socket.alphaName = data.apiKey;
@@ -44,6 +47,7 @@ io.on('connection', (socket) => {
         }
     });
 
+    // 📍 ٢. تازەکردنەوەی شوێن (Location Update)
     socket.on('updateLocation', (data) => {
         if (socket.alphaName && units[socket.alphaName]) {
             units[socket.alphaName].lat = data.lat;
@@ -55,10 +59,12 @@ io.on('connection', (socket) => {
         }
     });
 
+    // 📡 ٣. پەخشکردنی فەرمانی فەرماندە (President Broadcast)
     socket.on('presidentBroadcast', (data) => {
         io.emit('receiveMessage', data);
     });
 
+    // ✉️ ٤. ناردنی پەیامی بەپەلە و ئاسایی
     socket.on('sendEmergencyMessage', (data) => {
         if (units[data.sender]) {
             units[data.sender].status = 'SOS';
@@ -67,6 +73,7 @@ io.on('connection', (socket) => {
         io.emit('receiveMessage', data);
     });
 
+    // 🚨 ٥. هاواری بەپەلە (SOS Alert) - گوێگرتن لە هەردوو ناوەکە
     const handleSOS = (data) => {
         const senderName = data.sender || socket.alphaName;
         if (senderName && units[senderName]) {
@@ -78,12 +85,14 @@ io.on('connection', (socket) => {
     socket.on('sosAlert', handleSOS);
     socket.on('receiveSOS', handleSOS);
 
+    // 🎯 ٦. ئامانجی فەرماندەیی (Commander Target)
     const handleCommanderTarget = (targetData) => {
         io.emit('update_commander_target', targetData);
     };
     socket.on('set_commander_target', handleCommanderTarget);
     socket.on('president_target_location', handleCommanderTarget);
 
+    // 🎙️ ٧. گواستنەوەی دەنگ (Voice Stream)
     socket.on('voice_stream', (audioChunk) => {
         socket.broadcast.emit('receive_voice_stream', audioChunk);
     });
@@ -98,11 +107,11 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('ice-candidate', data);
     });
 
+    // 🌟 ٨. سیستەمی پێشکەوتووی WebRTC Signaling بۆ پەیوەندییە دەنگییە ڕاستەوخۆکان
     socket.on('webrtc_join_audio', (data) => {
         socket.peerRole = data.role || socket.id;
         let otherPeers = activeAudioPeers.filter(p => p.socketId !== socket.id).map(p => p.socketId);
         socket.emit('webrtc_peer_list', otherPeers);
-
         activeAudioPeers.push({ socketId: socket.id, role: socket.peerRole });
     });
 
@@ -132,6 +141,7 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('webrtc_peer_disconnected', socket.id);
     });
 
+    // ❌ ٩. پچڕانی پەیوەندی گشتی
     socket.on('disconnect', () => {
         if (socket.alphaName && units[socket.alphaName]) {
             delete units[socket.alphaName];
