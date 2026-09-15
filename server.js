@@ -143,6 +143,11 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('webrtc_peer_disconnected', socket.id);
     });
 
+    // 🗺️ ١٠. وەرگرتن و ناردنی پلانی مەیدانی نەخشە (Tactical Drawing)
+    socket.on('tactical_draw', (data) => {
+        socket.broadcast.emit('tactical_draw', data);
+    });
+
     // ❌ ٩. پچڕانی پەیوەندی گشتی
     socket.on('disconnect', () => {
         if (socket.alphaName && units[socket.alphaName]) {
