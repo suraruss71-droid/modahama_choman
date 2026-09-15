@@ -85,19 +85,13 @@
             background: linear-gradient(135deg, #dc2626, #991b1b);
             box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); margin-top: 5px;
         }
-        /* دیزاینی دوگمەی PTT بە بڕیارەکانی سێ دووری box-shadow و pointerdown */
         .btn-mic {
-            background: linear-gradient(135deg, #b91c1c, #991b1b); 
-            color: white; 
-            border: 2px solid #fca5a5;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.6);
-            transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.2s;
+            background: rgba(30, 41, 59, 0.9); color: var(--cyan-accent);
+            border: 1px solid var(--blue-accent);
         }
         .btn-mic.active {
-            background: linear-gradient(135deg, #15803d, #166534) !important;
-            border-color: #86efac !important;
-            transform: translateY(3px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #030712; border-color: var(--gold-accent);
         }
 
         .msg-fab {
@@ -160,12 +154,11 @@
     <div id="main-app">
         <div class="header-bar">
             <div>یەکە: <span id="unit-name-display" style="color:var(--green-accent); font-weight:bold;">-</span></div>
-            <!-- دوگمەی Push-to-Talk (PTT) لە ڕێگەی pointer events -->
-            <button id="mic-btn" class="btn btn-mic" style="width: auto; margin:0; padding:8px 14px;">🎙️ PTT: بگرە و قسە بکە</button>
+            <button id="mic-btn" class="btn btn-mic" style="width: auto; margin:0; padding:6px 12px;" onclick="toggleMicrophone()">🎙️ بێسیم WebRTC: OFF</button>
         </div>
 
         <div class="dash-info-bar">
-            <span id="coord-display">📍 MGRS: چاوەڕوانی سیگناڵ...</span>
+            <span id="coord-display">📍 پۆتان: دیاری نەکراوە</span>
             <span id="weather-info">🌤️ --°C</span>
         </div>
 
@@ -203,7 +196,6 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mgrs/1.0.0/mgrs.min.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         const socket = io();
@@ -214,7 +206,6 @@
 
         let micActive = false;
         let localAudioStream = null;
-        let audioTrack = null;
         let peerConnections = {};
         let remoteAudioElements = {};
 
@@ -249,68 +240,27 @@
             map = L.map('map', { zoomControl: false }).setView([36.19, 44.01], 15);
             L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-            // بەکارهێنانی نەخشەی سەتەلایتی تاریک و پاک
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{z}.png', {
-                maxZoom: 19,
-                attribution: 'Tactical Command Unit'
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 22,
+                maxNativeZoom: 18,
+                attribution: 'Esri Satellite'
+            }).addTo(map);
+
+            L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 22,
+                maxNativeZoom: 18,
+                opacity: 0.8
             }).addTo(map);
         }
 
         async function requestPermissions() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                localAudioStream = stream;
-                audioTrack = localAudioStream.getAudioTracks()[0];
-                if (audioTrack) {
-                    audioTrack.enabled = false; // لە سەرەتادا بێدەنگە بۆ PTT
-                }
-                
-                // چالاککردنی PTT لە ڕێگەی Pointer Events بۆ ماوس و لەمس
-                setupPTTButton();
-
+                await navigator.mediaDevices.getUserMedia({ audio: true });
                 if (navigator.geolocation) {
                     startGPS();
                 }
             } catch (err) {
                 console.warn("مۆڵەتی مایکرۆفۆن یان لوکەیشن نەدراوە.");
-            }
-        }
-
-        function setupPTTButton() {
-            const micBtn = document.getElementById('mic-btn');
-            
-            // کاتێک داگرتن ڕوودەدات (pointerdown)
-            micBtn.addEventListener('pointerdown', (e) => {
-                e.preventDefault();
-                if (!micActive && localAudioStream) {
-                    micActive = true;
-                    if (audioTrack) audioTrack.enabled = true;
-                    micBtn.classList.add('active');
-                    micBtn.innerText = "🎙️ PTT: پەخش دەکرێت...";
-                    socket.emit('webrtc_join_audio', { role: currentUnitName });
-                }
-            });
-
-            // کاتێک پەنجە یان ماوس هەڵدەگیرێت (pointerup)
-            micBtn.addEventListener('pointerup', (e) => {
-                e.preventDefault();
-                stopPTT();
-            });
-
-            micBtn.addEventListener('pointerleave', (e) => {
-                e.preventDefault();
-                if (micActive) stopPTT();
-            });
-        }
-
-        function stopPTT() {
-            const micBtn = document.getElementById('mic-btn');
-            if (micActive) {
-                micActive = false;
-                if (audioTrack) audioTrack.enabled = false;
-                micBtn.classList.remove('active');
-                micBtn.innerText = "🎙️ PTT: بگرە و قسە بکە";
-                socket.emit('webrtc_leave_audio');
             }
         }
 
@@ -320,30 +270,12 @@
 
             if (watchId) navigator.geolocation.clearWatch(watchId);
 
-            // پارامێتەر و فلتەری توندی ٥٠ مەتر بۆ GPS
-            const tacticalOptions = {
-                enableHighAccuracy: true,
-                maximumAge: 0,
-                timeout: 10000
-            };
-
             watchId = navigator.geolocation.watchPosition((position) => {
-                const accuracy = position.coords.accuracy;
-                const displayEl = document.getElementById('coord-display');
-
-                // فلتەری وردی: ئەگەر هەڵەی لۆکەیشنەکە لە 50 مەتر خراپتر بوو، فەرامۆشی بکە
-                if (accuracy > 50) {
-                    displayEl.innerText = `⚠️ سیگناڵی لاواز (وردی: ${Math.round(accuracy)}م)...`;
-                    return;
-                }
-
                 let lat = position.coords.latitude;
                 let lon = position.coords.longitude;
                 let heading = position.coords.heading || 0;
 
-                // گۆڕینی پۆتانەکان بۆ کۆدی سەربازیی MGRS بە کتێبخانەی mgrs.js
-                let mgrsCode = mgrs.forward([lon, lat], 5);
-                displayEl.innerText = `📍 MGRS: ${mgrsCode} (${Math.round(accuracy)}م)`;
+                document.getElementById('coord-display').innerText = `📍 ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
 
                 if (!userMarker) {
                     userMarker = L.marker([lat, lon]).addTo(map).bindPopup(`<b>${currentUnitName} (تۆ)</b>`).openPopup();
@@ -364,7 +296,7 @@
                 fetchWeather(lat, lon);
             }, (error) => {
                 document.getElementById('statusText').innerText = 'هەڵە لە وەرگرتنی GPS!';
-            }, tacticalOptions);
+            }, { enableHighAccuracy: true });
         }
 
         function fetchWeather(lat, lon) {
@@ -383,7 +315,52 @@
             }
         }
 
+        async function toggleMicrophone() {
+            const btn = document.getElementById('mic-btn');
+            try {
+                if (!micActive) {
+                    localAudioStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true,
+                            channelCount: 1,
+                            sampleRate: 48000
+                        }
+                    });
+
+                    micActive = true;
+                    btn.innerText = "🎙️ بێسیم WebRTC: ON (پەخش)";
+                    btn.classList.add('active');
+
+                    socket.emit('webrtc_join_audio', { role: currentUnitName });
+
+                } else {
+                    if (localAudioStream) {
+                        localAudioStream.getTracks().forEach(track => track.stop());
+                        localAudioStream = null;
+                    }
+
+                    Object.keys(peerConnections).forEach(peerId => {
+                        if (peerConnections[peerId]) {
+                            peerConnections[peerId].close();
+                            delete peerConnections[peerId];
+                        }
+                    });
+
+                    micActive = false;
+                    btn.innerText = "🎙️ بێسیم WebRTC: OFF";
+                    btn.classList.remove('active');
+
+                    socket.emit('webrtc_leave_audio');
+                }
+            } catch (err) {
+                alert('ڕێگەپێدانی مایکرۆفۆن سەرکەوتوو نەبوو!');
+            }
+        }
+
         socket.on('webrtc_peer_list', async (peers) => {
+            if (!micActive || !localAudioStream) return;
             for (let peerId of peers) {
                 if (!peerConnections[peerId]) {
                     setupPeerConnection(peerId, true);
