@@ -110,10 +110,8 @@ io.on('connection', (socket) => {
     // 🌟 ٨. سیستەمی پێشکەوتووی WebRTC Signaling
     socket.on('webrtc_join_audio', (data) => {
         socket.peerRole = data.role || socket.id;
-        // ناردنی لیستی بەشداربووانی پێشوو بۆ ئەم ئامێرە نوێیە
         let otherPeers = activeAudioPeers.filter(p => p.socketId !== socket.id).map(p => p.socketId);
         socket.emit('webrtc_peer_list', otherPeers);
-
         activeAudioPeers.push({ socketId: socket.id, role: socket.peerRole });
     });
 
@@ -155,7 +153,6 @@ io.on('connection', (socket) => {
             io.emit('updateUnitsList', units);
         }
         
-        // پاککردنەوەی WebRTC
         activeAudioPeers = activeAudioPeers.filter(p => p.socketId !== socket.id);
         socket.broadcast.emit('webrtc_peer_disconnected', socket.id);
 
