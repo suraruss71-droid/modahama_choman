@@ -10,61 +10,52 @@
     <style>
         :root {
             --bg-deep: #0f172a; 
-            --panel-bg: rgba(30, 41, 59, 0.85); 
+            --panel-bg: rgba(30, 41, 59, 0.95); 
             --primary-blue: #3b82f6;
             --primary-hover: #2563eb;
             --accent-gold: #f59e0b;
             --danger-red: #ef4444;
             --success-green: #10b981;
-            --border-color: rgba(148, 163, 184, 0.2);
+            --border-color: #334155;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        body { background: var(--bg-deep); color: var(--text-main); overflow-x: hidden; }
-
-        #auth-video {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover; z-index: -1; opacity: 0.3;
-        }
+        body { background-color: var(--bg-deep); color: var(--text-main); overflow-x: hidden; }
 
         #auth-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(2,6,23,0.95)); z-index: 99999;
+            background: var(--bg-deep); z-index: 99999;
             display: flex; justify-content: center; align-items: center;
         }
         
         .glass-panel {
-            background: var(--panel-bg);
-            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 40px; width: 420px; text-align: center; border-radius: 16px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            background: var(--panel-bg); border: 1px solid var(--border-color);
+            padding: 40px; width: 400px; text-align: center; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
         }
-        .glass-panel h2 { color: var(--text-main); font-size: 22px; margin-bottom: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .glass-panel h2 { color: var(--primary-blue); font-size: 22px; margin-bottom: 20px; }
         
         .input-group { margin-bottom: 20px; text-align: right; }
         .input-group label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 8px; }
         .input-group input {
-            width: 100%; padding: 14px; background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color);
+            width: 100%; padding: 14px; background: #020617; border: 1px solid var(--border-color);
             color: white; border-radius: 8px; font-size: 15px; text-align: center; outline: none; transition: 0.3s;
         }
-        .input-group input:focus { border-color: var(--primary-blue); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); }
+        .input-group input:focus { border-color: var(--primary-blue); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
         
         .btn {
-            background: rgba(255,255,255,0.05); color: var(--text-main);
-            border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; cursor: pointer;
-            font-size: 13px; width: 100%; font-weight: bold; transition: all 0.2s;
+            background: var(--primary-blue); color: white; border: none; padding: 12px; border-radius: 8px; 
+            cursor: pointer; font-size: 14px; width: 100%; font-weight: bold; transition: all 0.2s;
         }
-        .btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-1px); }
+        .btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
 
         #main-app { display: none; padding: 15px; max-width: 520px; margin: auto; position: relative; z-index: 10; }
         
         .panel-box {
-            background: var(--panel-bg); border: 1px solid var(--border-color);
-            border-radius: 10px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            margin-bottom: 12px;
+            background: #0f172a; border: 1px solid var(--border-color);
+            border-radius: 10px; padding: 15px; margin-bottom: 12px;
         }
 
         .header-bar {
@@ -84,40 +75,42 @@
 
         .volume-box { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-main); }
 
-        .btn-sos { background: var(--danger-red); border: none; margin-top: 5px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
+        .btn-sos { background: var(--danger-red); border: none; margin-top: 5px; }
         .btn-sos:hover { background: #dc2626; }
         
+        .btn-action { background: #1e293b; color: var(--text-main); border: 1px solid var(--border-color); }
+        .btn-action:hover { background: #334155; }
+
         .btn-mic-on { background: var(--success-green); color: white; border: none; }
-        .btn-mic-off { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #fca5a5; }
+        .btn-mic-off { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; }
         .btn-speaker-on { background: var(--primary-blue); color: white; border: none; }
-        .btn-speaker-off { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+        .btn-speaker-off { background: #1e293b; color: var(--text-muted); border: 1px solid var(--border-color); }
 
         .msg-fab {
             position: fixed; bottom: 25px; left: 25px;
             background: var(--primary-blue); color: white; width: 60px; height: 60px;
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-size: 24px; cursor: pointer; z-index: 2000; box-shadow: 0 8px 25px rgba(59,130,246,0.5);
-            border: none; transition: 0.3s;
+            font-size: 24px; cursor: pointer; z-index: 2000; border: none;
+            box-shadow: 0 8px 25px rgba(59,130,246,0.5); transition: 0.3s;
         }
         .msg-fab:hover { transform: scale(1.05); background: var(--primary-hover); }
         .msg-badge {
             position: absolute; top: -3px; right: -3px; background: var(--danger-red);
             color: white; font-size: 11px; font-weight: bold; width: 20px; height: 20px;
-            border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(239,68,68,0.5);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
         }
 
         #msgModal {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 10000; display: none;
+            background: rgba(0,0,0,0.8); z-index: 10000; display: none;
             justify-content: center; align-items: center;
         }
         .msg-modal-content {
-            background: var(--bg-deep); border: 1px solid var(--border-color);
-            width: 90%; max-width: 440px; padding: 25px; display: flex; flex-direction: column; border-radius: 16px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            background: var(--panel-bg); border: 1px solid var(--border-color);
+            width: 90%; max-width: 440px; padding: 25px; display: flex; flex-direction: column; border-radius: 12px;
         }
         .messages-list {
-            height: 280px; overflow-y: auto; background: rgba(0,0,0,0.3);
+            height: 280px; overflow-y: auto; background: #020617;
             border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-top: 15px;
         }
         .msg-item {
@@ -130,24 +123,21 @@
         .status-msg { margin-top: 10px; color: var(--success-green); font-size: 12px; text-align: center; }
         
         input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--primary-blue); cursor: pointer; margin-top: -6px; box-shadow: 0 0 10px rgba(59,130,246,0.5); }
-        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--primary-blue); cursor: pointer; margin-top: -6px; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #334155; border-radius: 2px; }
         .arrow-marker { background: transparent; border: none; }
     </style>
 </head>
 <body>
 
     <div id="auth-overlay">
-        <video autoplay muted loop id="auth-video">
-            <source src="https://assets.mixkit.co/videos/preview/mixkit-global-world-map-animation-31801-large.mp4" type="video/mp4">
-        </video>
         <div class="auth-box glass-panel">
             <h2>🛡️ چوونەژوورەوەی یەکەی ئەلفا</h2>
             <div class="input-group">
                 <label>ناوی یەکە (نموونە: Alpha 1):</label>
                 <input type="text" id="api-key-input" placeholder="Alpha 1">
             </div>
-            <button class="btn" style="background: var(--primary-blue); color: white; border:none;" onclick="login()">چوونەژوورەوە</button>
+            <button class="btn" onclick="login()">چوونەژوورەوە 🔑</button>
             <div id="login-error" style="color:#fca5a5; font-size:12px; margin-top:10px;"></div>
         </div>
     </div>
@@ -176,8 +166,8 @@
         </div>
 
         <div class="controls-grid">
-            <button class="btn" style="background: rgba(139, 92, 246, 0.2); border-color: rgba(139, 92, 246, 0.4); color: #c4b5fd;" onclick="centerOnMe()">🧭 شوێنی من</button>
-            <button class="btn" style="background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7;" onclick="startGPS()">📡 دەستپێکردنی GPS</button>
+            <button class="btn btn-action" onclick="centerOnMe()">🧭 شوێنی من</button>
+            <button class="btn btn-action" style="border-color:var(--success-green); color:var(--success-green);" onclick="startGPS()">📡 دەستپێکردنی GPS</button>
         </div>
 
         <button class="btn btn-sos" onclick="sendSOS()">🚨 ناردنی نیشانەی مەترسی بەپەلە (SOS)</button>
@@ -202,9 +192,33 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mgrs/1.0.0/mgrs.min.js"></script>
+    <script src="https://unpkg.com/mgrs@1.0.0/dist/mgrs.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
+        // 🌟 گەرچی کتێبخانەی MGRS کێشەی هەبێت سیستەم ناوەستێت
+        if (typeof mgrs === 'undefined') {
+            window.mgrs = { forward: function() { return "OFFLINE"; } };
+            console.warn("MGRS library could not load. Using fallback.");
+        }
+
+        async function requestPermissions() {
+            try {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => console.log("Location allowed"),
+                        (err) => console.warn("Location denied")
+                    );
+                }
+            } catch (err) {}
+        }
+        window.onload = requestPermissions;
+
+        function login() {
+            const key = document.getElementById('api-key-input').value.trim();
+            if (!key) return;
+            socket.emit('register_alpha', { apiKey: key });
+        }
+
         const socket = io();
         let map, userMarker, targetMarker;
         let targetLine = null; 
@@ -221,12 +235,6 @@
         let remoteAudioElements = {};
 
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
-
-        function login() {
-            const key = document.getElementById('api-key-input').value.trim();
-            if (!key) return;
-            socket.emit('register_alpha', { apiKey: key });
-        }
 
         socket.on('registration_status', (res) => {
             if (res.success) {
@@ -261,22 +269,16 @@
         socket.on('tactical_draw', (data) => {
             let layer;
             if (data.type === 'circle') {
-                layer = L.circle(data.latlng, { radius: data.radius, color: '#00ffcc', weight: 3, fillOpacity: 0.2 });
+                layer = L.circle(data.latlng, { radius: data.radius, color: '#f59e0b', weight: 3 });
             } else if (data.type === 'polygon' || data.type === 'rectangle') {
-                layer = L.polygon(data.latlngs, { color: '#00ffcc', weight: 3, fillOpacity: 0.2 });
+                layer = L.polygon(data.latlngs, { color: '#f59e0b', weight: 3 });
             } else if (data.type === 'polyline') {
-                layer = L.polyline(data.latlngs, { color: '#00ffcc', weight: 3 });
+                layer = L.polyline(data.latlngs, { color: '#f59e0b', weight: 3 });
             } else if (data.type === 'marker') {
                 layer = L.marker(data.latlng);
             }
             if (layer) { tacticalLayers.addLayer(layer); }
         });
-
-        async function requestPermissions() {
-            try {
-                if (navigator.geolocation) { startGPS(); }
-            } catch (err) { console.warn("مۆڵەتی لۆکەیشن نەدراوە."); }
-        }
 
         function startGPS() {
             if (!navigator.geolocation) return;
@@ -294,14 +296,13 @@
                 let lon = position.coords.longitude;
                 let heading = position.coords.heading || 0;
 
-                // فلتەری لۆکەیشن نەرم کراوە
                 if (accuracy > 100) {
                     displayEl.innerText = `⚠️ سیگناڵ لاوازە (${Math.round(accuracy)}م)...`;
                 }
 
-                // 🌟 چارەسەری MGRS
+                // 🌟 چارەسەری MGRS کە وەک ژمارە دەینێرێت
                 try {
-                    currentMGRS = mgrs.forward([Number(lon), Number(lat)], 5);
+                    currentMGRS = window.mgrs.forward([Number(lon), Number(lat)], 5);
                     displayEl.innerText = `📍 MGRS: ${currentMGRS}`;
                 } catch(e) {
                     displayEl.innerText = `📍 MGRS: CALC_ERROR`;
@@ -324,14 +325,12 @@
                     id: currentUnitName, lat: lat, lon: lon, heading: heading, status: 'ئامادەباش', lastSeen: Date.now()
                 });
 
-                // تەنیا ئەگەر زۆر پێویست بوو بانگی بکە
-                // fetchWeather(lat, lon);
+                fetchWeather(lat, lon);
             }, (error) => {
                 document.getElementById('statusText').innerText = 'هەڵە لە وەرگرتنی GPS!';
             }, tacticalOptions);
         }
 
-        // کەشوهەوا لە کاتی پێویست
         function fetchWeather(lat, lon) {
             fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`)
                 .then(r => r.json())
@@ -378,10 +377,10 @@
             
             const micBtn = document.getElementById('micToggleBtn');
             if (micActive) {
-                micBtn.innerText = "🎙️ مایک: کراوەتەوە";
+                micBtn.innerText = "🎙️ مایک: ON";
                 micBtn.className = "btn btn-mic-on";
             } else {
-                micBtn.innerText = "🎙️ مایک: داخراوە";
+                micBtn.innerText = "🎙️ مایک: OFF";
                 micBtn.className = "btn btn-mic-off";
             }
         }
@@ -390,11 +389,11 @@
             speakerActive = !speakerActive;
             const spkBtn = document.getElementById('speakerToggleBtn');
             if (speakerActive) {
-                spkBtn.innerText = "🔊 گوێگرتن: کراوەتەوە";
+                spkBtn.innerText = "🔊 گوێگرتن: ON";
                 spkBtn.className = "btn btn-speaker-on";
                 Object.values(remoteAudioElements).forEach(a => a.muted = false);
             } else {
-                spkBtn.innerText = "🔇 گوێگرتن: داخراوە";
+                spkBtn.innerText = "🔇 گوێگرتن: OFF";
                 spkBtn.className = "btn btn-speaker-off";
                 Object.values(remoteAudioElements).forEach(a => a.muted = true);
             }
@@ -516,7 +515,7 @@
             const item = document.createElement('div');
             item.className = `msg-item ${type}`;
             let formattedText = text.replace(/\n/g, '<br>');
-            item.innerHTML = `<b>${sender}:</b><br>${formattedText}<br><span style="font-size:9px; color:#94a3b8;">${new Date().toLocaleTimeString()}</span>`;
+            item.innerHTML = `<b>${sender}:</b><br>${formattedText}<br><span style="font-size:9px; color:var(--text-muted);">${new Date().toLocaleTimeString()}</span>`;
             inbox.insertBefore(item, inbox.firstChild);
             
             unreadCount++;
