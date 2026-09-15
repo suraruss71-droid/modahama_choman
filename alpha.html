@@ -234,7 +234,6 @@
             ]
         };
 
-        // 🌟 گۆڕاوی وەرگرتنی هێڵکارییەکانی فەرماندە بۆ ئەلفا
         let drawnItems = new L.FeatureGroup();
 
         function login() {
@@ -274,7 +273,6 @@
                 opacity: 0.8
             }).addTo(map);
 
-            // 🌟 زیادکردنی لایەری وێنەکێشانەکانی فەرماندە بۆ نەخشەی ئەلفا
             map.addLayer(drawnItems);
         }
 
@@ -590,8 +588,14 @@
             addMessageToInbox(data.sender, data.text, 'normal');
         });
 
-        // 🌟 وەرگرتنی هێڵکارییەکان (بازنە، چوارگۆشە، هێڵ) لە فەرماندەوە بۆ نەخشەی ئەلفا
+        // 🌟 وەرگرتنی هێڵکارییەکان و چارەسەری کێشەی بلۆکبوونی سڕینەوە لە سێرڤەر
         socket.on('tactical_draw', (data) => {
+            // 🌟 چارەسەری بنەڕەتی: وەرگرتنی فەرمانی سڕینەوە لەناو هەمان ئیڤێنت
+            if (data.type === 'clear') {
+                drawnItems.clearLayers();
+                return;
+            }
+
             let layer; 
             const style = { color: '#3b82f6', weight: 3, opacity: 0.9, fillColor: '#3b82f6', fillOpacity: 0.25 };
             
@@ -604,7 +608,6 @@
             if(layer) drawnItems.addLayer(layer);
         });
 
-        // 🌟 سڕینەوەی وێنەکان کاتێک فەرماندە دەیانسڕێتەوە
         socket.on('tactical_draw_clear', () => {
             drawnItems.clearLayers();
         });
