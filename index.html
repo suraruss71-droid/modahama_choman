@@ -3,309 +3,307 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ژووری ئۆپەراسیۆنی سەربازی باڵا - فەرماندە چۆمان</title>
-    <!-- کتێبخانەی نەخشە و کێشان -->
+    <title>ژووری ئۆپەراسیۆنی سەربازی باڵا - فەرماندەیی</title>
+    
+    <!-- کتێبخانەکانی CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    
     <style>
-        /* دیزاینی نوێی شاز و سەرنجڕاکێش (Tactical Dark Mode) */
+        /* دیزاینی پێشکەوتووی سەربازی (Military HUD / Cyber Tactical) */
         :root {
-            --bg-deep: #050810;
-            --panel-bg: #0d1323;
-            --panel-border: #1e2a47;
-            --gold-accent: #facc15;
-            --blue-accent: #3b82f6;
-            --red-accent: #ef4444;
-            --green-accent: #10b981;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
+            --bg-deep: #020202;
+            --panel-bg: rgba(0, 20, 0, 0.85);
+            --hacker-green: #00ff41;
+            --hacker-dark-green: #008f11;
+            --danger-red: #ff003c;
+            --alert-yellow: #fde047;
+            --border-color: #005f00;
+            --text-main: #e2e8f0;
+            --terminal-glow: 0 0 10px rgba(0, 255, 65, 0.5);
         }
 
         * { box-sizing: border-box; }
+        
         body {
             margin: 0; padding: 0;
-            font-family: 'Segoe UI', Tahoma, sans-serif;
+            font-family: 'Courier New', Courier, monospace;
             background-color: var(--bg-deep);
-            color: var(--text-main);
+            color: var(--hacker-green);
             overflow: hidden;
+            user-select: none;
+        }
+
+        body::after {
+            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2; background-size: 100% 3px, 6px 100%; pointer-events: none;
         }
 
         #auth-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(5, 8, 16, 0.95); z-index: 99999;
+            background: #000; z-index: 99999;
             display: flex; justify-content: center; align-items: center;
         }
         .auth-box {
-            background: #0a0f1c; border: 2px solid var(--blue-accent);
-            padding: 35px; border-radius: 8px; width: 400px; text-align: center;
-            box-shadow: 0 0 40px rgba(59, 130, 246, 0.2);
+            background: var(--bg-deep); border: 2px solid var(--hacker-green);
+            padding: 40px; width: 420px; text-align: center;
+            box-shadow: var(--terminal-glow);
         }
-        .auth-box h1 { color: var(--blue-accent); font-size: 22px; margin-bottom: 10px; text-transform: uppercase; }
-        .auth-box p { color: var(--text-muted); font-size: 13px; margin-bottom: 20px; }
+        .auth-box h1 { color: var(--hacker-green); font-size: 22px; margin-bottom: 15px; letter-spacing: 2px; text-shadow: var(--terminal-glow); }
+        .auth-box p { color: #888; font-size: 13px; margin-bottom: 25px; }
         .auth-input {
-            width: 100%; padding: 12px; background: #050810; border: 1px solid var(--panel-border);
-            color: white; border-radius: 4px; margin-bottom: 15px; text-align: center; font-size: 15px;
-            outline: none; transition: 0.3s;
+            width: 100%; padding: 12px; background: transparent; border: 1px solid var(--hacker-dark-green);
+            color: var(--hacker-green); margin-bottom: 15px; text-align: center; 
+            font-size: 16px; font-family: 'Courier New', monospace; outline: none;
         }
-        .auth-input:focus { border-color: var(--blue-accent); box-shadow: 0 0 10px rgba(59,130,246,0.3); }
+        .auth-input:focus { border-color: var(--hacker-green); box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.2); }
         .auth-btn {
-            background: var(--blue-accent); color: white; border: none; padding: 12px; width: 100%; 
-            font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 15px; transition: 0.2s;
+            background: var(--hacker-dark-green); color: #000; border: 1px solid var(--hacker-green);
+            padding: 12px; width: 100%; font-weight: bold; cursor: pointer; font-size: 15px; 
+            letter-spacing: 2px; transition: 0.2s; font-family: 'Courier New', monospace;
         }
-        .auth-btn:hover { background: #2563eb; box-shadow: 0 0 15px rgba(59,130,246,0.5); }
-        .auth-error { color: var(--red-accent); font-size: 13px; margin-top: 10px; display: none; }
+        .auth-btn:hover { background: var(--hacker-green); box-shadow: var(--terminal-glow); }
+        .auth-error { color: var(--danger-red); font-size: 13px; margin-top: 10px; display: none; text-shadow: 0 0 5px red; }
 
         #container { display: flex; height: 100vh; width: 100vw; position: relative; }
         
         #sidebar {
-            width: 440px; min-width: 440px; background: var(--bg-deep);
+            width: 440px; min-width: 440px; background: var(--panel-bg);
             padding: 15px; display: flex; flex-direction: column; gap: 12px;
-            border-left: 1px solid var(--panel-border);
-            box-shadow: -10px 0 30px rgba(0,0,0,0.8); z-index: 1000;
-            height: 100vh; overflow-y: auto;
+            border-left: 2px solid var(--hacker-dark-green);
+            box-shadow: 10px 0 30px rgba(0,255,65,0.05); z-index: 1000;
+            height: 100vh; overflow-y: auto; position: relative;
         }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: var(--bg-deep); }
-        ::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 4px; }
 
-        .panel-box {
-            background: var(--panel-bg);
-            border: 1px solid var(--panel-border);
-            border-radius: 6px; padding: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        #sidebar::before {
+            content: ''; position: absolute; top: -10px; left: 0; width: 100%; height: 2px;
+            background: rgba(0, 255, 65, 0.8); box-shadow: 0 0 15px rgba(0,255,65,1);
+            animation: scanline 5s linear infinite; z-index: 1001; pointer-events: none;
         }
+        @keyframes scanline { 0% { top: -10px; } 100% { top: 100%; } }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: var(--hacker-dark-green); }
+
+        .hud-panel {
+            background: rgba(0, 10, 0, 0.7); border: 1px solid var(--border-color);
+            padding: 12px; position: relative; border-left: 4px solid var(--hacker-green);
+        }
+
+        .commander-header-box { display: flex; align-items: center; gap: 15px; }
+        .commander-badge-num {
+            background: var(--hacker-green); color: #000; font-weight: bold;
+            width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; 
+            font-size: 18px; box-shadow: var(--terminal-glow); border-radius: 2px;
+        }
+        .commander-info { font-size: 15px; font-weight: bold; letter-spacing: 1px; }
+
+        .live-indicator { font-size: 11px; display: flex; align-items: center; gap: 6px; margin-bottom: 5px; color: var(--hacker-green); }
+        .live-dot { width: 8px; height: 8px; background: var(--hacker-green); animation: pulse 1s infinite; box-shadow: var(--terminal-glow); }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
+
+        .btn {
+            background: transparent; color: var(--hacker-green);
+            border: 1px solid var(--hacker-dark-green); padding: 10px; 
+            cursor: pointer; width: 100%; font-weight: bold; font-size: 12px;
+            text-transform: uppercase; transition: 0.3s; font-family: 'Courier New', monospace;
+        }
+        .btn:hover { background: rgba(0, 255, 65, 0.1); border-color: var(--hacker-green); text-shadow: var(--terminal-glow); }
+
+        .radio-controls-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; } /* 3 columns now */
+
+        .btn-mic-on { background: rgba(0,255,65,0.2); border-color: var(--hacker-green); color: var(--hacker-green); box-shadow: inset 0 0 10px rgba(0,255,65,0.3); }
+        .btn-mic-off { border-color: var(--danger-red); color: var(--danger-red); }
+        
+        .btn-speaker-on { background: rgba(0,255,65,0.2); border-color: var(--hacker-green); color: var(--hacker-green); box-shadow: inset 0 0 10px rgba(0,255,65,0.3); }
+        .btn-speaker-off { border-color: #555; color: #555; }
+
+        .volume-box { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
+        input[type=range] { -webkit-appearance: none; width: 60%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 14px; width: 10px; background: var(--hacker-green); cursor: pointer; margin-top: -5px; box-shadow: var(--terminal-glow); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 2px; background: var(--hacker-dark-green); }
+
+        .search-input, .broadcast-input {
+            width: 100%; background: #000; border: 1px dashed var(--hacker-dark-green);
+            color: var(--hacker-green); padding: 10px; font-size: 12px; margin-bottom: 8px; outline: none;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .search-input:focus, .broadcast-input:focus { border-color: var(--hacker-green); }
 
         #map-container { flex-grow: 1; height: 100vh; position: relative; background: #000; }
-        #map { width: 100%; height: 100%; }
+        #map { width: 100%; height: 100%; filter: sepia(100%) hue-rotate(80deg) saturate(200%) contrast(120%); }
 
-        .commander-header-box { display: flex; align-items: center; gap: 12px; }
-        .commander-badge-num {
-            background: var(--gold-accent); color: #000; font-weight: bold;
-            width: 32px; height: 32px; border-radius: 50%; display: flex;
-            align-items: center; justify-content: center; font-size: 16px;
-            box-shadow: 0 0 15px rgba(250,204,21,0.4);
+        #top-dashboard-bar {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 15, 0, 0.85); border: 1px solid var(--hacker-green);
+            padding: 8px 25px; z-index: 999; font-size: 14px; font-weight: bold;
+            display: flex; align-items: center; gap: 20px; box-shadow: var(--terminal-glow);
         }
-        .commander-info { font-size: 14px; color: var(--text-main); font-weight: bold; letter-spacing: 0.5px; }
+
+        .stats-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+
+        .units-container { height: 200px; overflow-y: auto; }
+        .team-group { margin-bottom: 10px; border-bottom: 1px dashed var(--hacker-dark-green); padding-bottom: 5px; }
+        .team-title { font-size: 12px; color: var(--hacker-green); margin-bottom: 6px; font-weight: bold; }
+        
+        .unit-row {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(0, 20, 0, 0.5); padding: 6px 10px; margin-bottom: 4px; font-size: 11px;
+            border-left: 2px solid transparent;
+        }
+        .unit-row.online { border-left-color: var(--hacker-green); }
+        .unit-row.offline { border-left-color: #333; opacity: 0.5; color: #777; }
+        .unit-row.sos { border-left-color: var(--danger-red); background: rgba(255, 0, 60, 0.15); color: var(--danger-red); animation: flashSOS 0.5s infinite; }
+        @keyframes flashSOS { 0% { background: rgba(255,0,0,0.3); } 100% { background: transparent; } }
+
+        .dot-on { width: 8px; height: 8px; background: var(--hacker-green); display: inline-block; box-shadow: var(--terminal-glow); }
+        .dot-off { width: 8px; height: 8px; background: #555; display: inline-block; }
+
+        .messages-box {
+            height: 120px; background: #000; border: 1px dashed var(--hacker-dark-green);
+            padding: 10px; overflow-y: auto; font-size: 11px; margin-top: 5px;
+        }
+        .msg-item {
+            padding: 4px 0; border-bottom: 1px dotted var(--border-color);
+        }
+        .msg-item.sos { color: var(--danger-red); font-weight: bold; text-shadow: 0 0 5px red; }
 
         .msg-fab {
             position: absolute; bottom: 30px; right: 30px;
-            background: var(--blue-accent); color: white; width: 60px; height: 60px;
+            background: #000; color: var(--hacker-green); width: 60px; height: 60px;
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-size: 26px; cursor: pointer; z-index: 2000; box-shadow: 0 8px 25px rgba(0,0,0,0.5);
-            border: 2px solid #fff; transition: 0.2s;
+            font-size: 26px; cursor: pointer; z-index: 2000; border: 2px solid var(--hacker-green);
+            box-shadow: var(--terminal-glow); transition: 0.2s;
         }
-        .msg-fab:hover { transform: scale(1.05); }
+        .msg-fab:hover { background: var(--hacker-green); color: #000; }
         .msg-badge-counter {
-            position: absolute; top: -2px; right: -2px;
-            background: var(--red-accent); color: white; font-size: 12px; font-weight: bold;
-            width: 22px; height: 22px; border-radius: 50%; display: flex;
-            align-items: center; justify-content: center; border: 2px solid var(--bg-deep);
+            position: absolute; top: -5px; right: -5px;
+            background: var(--danger-red); color: white; font-size: 12px; font-weight: bold;
+            width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
         }
 
         #msgModal {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.8); z-index: 10000; display: none;
+            background: rgba(0,0,0,0.85); z-index: 10000; display: none;
             justify-content: center; align-items: center;
         }
         .msg-modal-content {
-            background: var(--panel-bg); border: 1px solid var(--panel-border);
-            width: 450px; max-height: 80vh; border-radius: 8px; display: flex; flex-direction: column;
-            padding: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            background: var(--bg-deep); border: 2px solid var(--hacker-green);
+            width: 500px; max-height: 80vh; display: flex; flex-direction: column; padding: 20px; box-shadow: var(--terminal-glow);
         }
-
-        .volume-box { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
-        
-        .radio-controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-        .search-input, .broadcast-input {
-            width: 100%; background: var(--bg-deep); border: 1px solid var(--panel-border);
-            color: white; padding: 10px; border-radius: 4px; font-size: 12px; margin-bottom: 8px;
-            outline: none; transition: 0.3s;
-        }
-        .search-input:focus, .broadcast-input:focus { border-color: var(--blue-accent); }
-
-        #top-dashboard-bar {
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(13, 19, 35, 0.9); border: 1px solid var(--blue-accent);
-            padding: 10px 25px; border-radius: 6px; z-index: 999;
-            font-family: monospace; font-size: 14px; color: #00ffcc;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.7); display: flex; align-items: center; gap: 20px;
-        }
-
-        .weather-badge {
-            background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3);
-            padding: 4px 10px; border-radius: 4px; color: #93c5fd; font-weight: bold;
-        }
-
-        h3 { margin: 0 0 10px 0; color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
-
-        .live-indicator {
-            font-size: 11px; color: var(--green-accent); background: rgba(16, 185, 129, 0.1);
-            padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.2);
-            display: inline-flex; align-items: center; gap: 6px; margin-bottom: 5px;
-        }
-        .live-dot { width: 6px; height: 6px; background: var(--green-accent); border-radius: 50%; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-
-        .stats-header {
-            display: flex; justify-content: space-between; font-size: 12px;
-            color: var(--gold-accent); font-weight: bold; margin-bottom: 5px;
-        }
-
-        .units-container { height: 200px; overflow-y: auto; }
-        .team-group { margin-bottom: 10px; border-bottom: 1px dashed var(--panel-border); padding-bottom: 5px; }
-        .team-title { font-size: 11px; color: var(--gold-accent); margin-bottom: 4px; font-weight: bold; }
-        
-        .unit-row {
-            display: flex; justify-content: space-between; align-items: center;
-            background: var(--bg-deep); padding: 6px 10px;
-            margin-bottom: 4px; border-radius: 4px; font-size: 11px;
-            border-right: 3px solid transparent;
-        }
-        .unit-row.online { border-right-color: var(--green-accent); }
-        .unit-row.offline { border-right-color: #334155; opacity: 0.6; }
-        .unit-row.sos { border-right-color: var(--red-accent); background: rgba(239, 68, 68, 0.15); animation: flashRed 1s infinite; }
-
-        @keyframes flashRed { 0% { border-color: var(--red-accent); } 50% { border-color: transparent; } 100% { border-color: var(--red-accent); } }
-
-        .dot-on { width: 8px; height: 8px; background: var(--green-accent); border-radius: 50%; display: inline-block; box-shadow: 0 0 5px var(--green-accent); }
-        .dot-off { width: 8px; height: 8px; background: #475569; border-radius: 50%; display: inline-block; }
-
-        .messages-box {
-            height: 120px; background: var(--bg-deep); border: 1px solid var(--panel-border);
-            border-radius: 4px; padding: 10px; overflow-y: auto; font-size: 12px; margin-top: 5px;
-        }
-        .msg-item {
-            padding: 6px 10px; margin-bottom: 5px; border-radius: 4px; background: var(--panel-bg);
-            border-left: 3px solid var(--blue-accent); font-family: monospace;
-        }
-        .msg-item.sos { border-left-color: var(--red-accent); background: rgba(239, 68, 68, 0.1); color: #fca5a5; }
-
-        .btn {
-            background: #1e293b; color: white; border: 1px solid #334155;
-            padding: 10px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; font-size: 12px;
-            transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        .btn:hover { filter: brightness(1.2); }
-        
-        .btn-mute { background: #713f12; border-color: #a16207; color: #fef08a; }
-        .btn-mic-on { background: rgba(16, 185, 129, 0.1); border-color: var(--green-accent); color: var(--green-accent); }
-        .btn-mic-off { background: rgba(239, 68, 68, 0.1); border-color: var(--red-accent); color: var(--red-accent); }
-        .btn-speaker-on { background: rgba(59, 130, 246, 0.1); border-color: var(--blue-accent); color: var(--blue-accent); }
-        .btn-speaker-off { background: #1e293b; border-color: #475569; color: #94a3b8; }
-        .btn-send { background: var(--blue-accent); border-color: #2563eb; }
-        .btn-my-location { background: #4c1d95; border-color: #6d28d9; margin-bottom: 5px; }
-
-        input[type=range] { -webkit-appearance: none; width: 60%; background: transparent; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 14px; width: 14px; background: var(--blue-accent); cursor: pointer; margin-top: -5px; border-radius: 50%; }
-        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #334155; border-radius: 2px; }
+        .arrow-marker { background: transparent; border: none; }
     </style>
 </head>
 <body>
 
     <div id="auth-overlay">
         <div class="auth-box">
-            <h1>SYSTEM OVERRIDE</h1>
-            <p>پاسوۆردی فەرماندە (Choman) بنووسە بۆ کردنەوەی سیستەم</p>
-            <input type="password" id="authPass" class="auth-input" placeholder="ACCESS CODE...">
-            <button class="auth-btn" onclick="verifyCommander()">چوونە ژوورەوە</button>
-            <div id="authError" class="auth-error">پاسوۆردی هەڵەیە! تکایە (Choman) بنووسە.</div>
+            <h1>> SYSTEM LOGIN_</h1>
+            <p>Enter Commander Override Code</p>
+            <input type="password" id="authPass" class="auth-input" placeholder="> _">
+            <button class="auth-btn" onclick="verifyCommander()">[ ACCESS ]</button>
+            <div id="authError" class="auth-error">ACCESS DENIED.</div>
         </div>
     </div>
 
-    <div class="msg-fab" onclick="toggleMessageModal()" title="پەیام و هۆشدارییەکان">
-        📩
+    <div class="msg-fab" onclick="toggleMessageModal()">
+        ✉️
         <div class="msg-badge-counter" id="msgBadgeCount">1</div>
     </div>
 
     <div id="msgModal">
         <div class="msg-modal-content">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #1e293b; padding-bottom: 10px;">
-                <h3 style="margin: 0; color: var(--blue-accent);">نامە و هۆشدارییە میدانییەکان</h3>
-                <button onclick="toggleMessageModal()" style="background:transparent; color:var(--red-accent); border:1px solid var(--red-accent); border-radius:4px; padding:2px 8px; cursor:pointer;">X</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--hacker-green); padding-bottom: 10px;">
+                <h3 style="margin: 0; color: var(--hacker-green);">> ENCRYPTED INBOX</h3>
+                <button onclick="toggleMessageModal()" style="background:transparent; color:var(--danger-red); border:1px solid var(--danger-red); padding:2px 10px; cursor:pointer;">[ X ]</button>
             </div>
-            <div class="messages-box" id="modalMessagesList" style="height: 300px;">
+            <div class="messages-box" id="modalMessagesList" style="height: 300px; border:none;">
                 <div class="msg-item">
-                    <b style="color:var(--green-accent);">سیستەم:</b> فەرماندە چۆمان، ژووری ئۆپەراسیۆن بە سەرکەوتوویی دەستبەکاربوو.<br>
-                    <span style="font-size: 9px; color: #64748b;">ئێستا</span>
+                    <b>[SYSTEM]:</b> Connection established. Welcome Commander.<br>
+                    <span style="font-size: 9px; color: #555;">00:00:00</span>
                 </div>
             </div>
         </div>
     </div>
 
     <div id="container" style="display: none;">
+        
         <div id="sidebar">
-            <div class="panel-box commander-header-box">
-                <div class="commander-badge-num">★</div>
-                <div class="commander-info">COMMANDER: KS-CHOMAN</div>
+            <div class="hud-panel commander-header-box">
+                <div class="commander-badge-num">CMD</div>
+                <div class="commander-info">> KS-CHOMAN_</div>
             </div>
-            <div style="text-align:center;"><span class="live-indicator"><div class="live-dot"></div> سیستەمی پارێزراوی ئۆپەراسیۆن</span></div>
+            <div class="live-indicator"><div class="live-dot"></div> [SECURE AUDIO CHANNEL ESTABLISHED]</div>
 
-            <button class="btn btn-my-location" onclick="goToMyLocation()">📍 نیشانۆکەی من (پانی و درێژی خۆم)</button>
+            <button class="btn btn-my-location" style="border-color:#a855f7; color:#a855f7;" onclick="goToMyLocation()">[ LOCATE COMMANDER ]</button>
 
+            <!-- 🌟 کۆنتڕۆڵی ڕادار زیاد کرا بۆ ترافیکی ئاسمانی -->
             <div class="radio-controls-grid">
-                <button class="btn btn-mic-off" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ مایک: داخراوە</button>
-                <button class="btn btn-speaker-on" id="speakerToggleBtn" onclick="toggleSpeaker()">🔊 گوێگرتن: کراوەتەوە</button>
+                <button class="btn btn-mic-off" id="micToggleBtn" onclick="toggleMicrophone()">[ MIC: OFF ]</button>
+                <button class="btn btn-speaker-on" id="speakerToggleBtn" onclick="toggleSpeaker()">[ RECV: ON ]</button>
+                <button class="btn btn-speaker-off" id="radarToggleBtn" onclick="toggleRadar()">[ RADAR: OFF ]</button>
             </div>
 
-            <div class="panel-box volume-box">
-                <label for="volumeSlider">🔊 ئاستی دەنگ:</label>
+            <div class="hud-panel volume-box">
+                <span>[VOLUME]:</span>
                 <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="1" onchange="changeVolume(this.value)">
             </div>
 
-            <div class="panel-box search-coord-box">
-                <h3>گەڕان بەدوای پۆتان</h3>
-                <input type="text" id="coordSearchInput" class="search-input" placeholder="MGRS (نموونە: 38SMF 47237)">
-                <button class="btn btn-send" onclick="searchByCoord()">گەڕان و دیاریکردن</button>
+            <div class="hud-panel search-coord-box">
+                <h3>> TARGET SEARCH</h3>
+                <input type="text" id="coordSearchInput" class="search-input" placeholder="Enter MGRS...">
+                <button class="btn" onclick="searchByCoord()">[ EXECUTE SEARCH ]</button>
             </div>
 
-            <div class="stats-header panel-box" style="margin-bottom:0;">
-                <span id="onlineCountText">ئۆنلاین: 0 / ٣٠</span>
-                <span>کۆی هێزەکان: ٣٠ ئەلفا</span>
+            <div class="stats-header">
+                <span id="onlineCountText">ONLINE: 0 / 30</span>
+                <span>TOTAL: 30</span>
             </div>
 
-            <div class="panel-box units-container" id="unitsList"></div>
+            <div class="hud-panel units-container" id="unitsList"></div>
 
-            <div class="panel-box broadcast-section">
-                <h3>ناردنی فەرمان بۆ گشت هێزەکان</h3>
-                <input type="text" id="presMsgInput" class="broadcast-input" placeholder="فەرمان بنووسە...">
-                <button class="btn btn-send" onclick="sendPresidentMessage()">ناردنی فەرمان</button>
+            <div class="hud-panel broadcast-section">
+                <h3>> BROADCAST COMMAND</h3>
+                <input type="text" id="presMsgInput" class="broadcast-input" placeholder="Type command...">
+                <button class="btn" onclick="sendPresidentMessage()">[ TRANSMIT ]</button>
                 <div class="messages-box" id="messagesList">
-                    <div class="msg-item"><b style="color:var(--green-accent);">سیستەم:</b> ئامادەیە بۆ وەرگرتن.</div>
+                    <div class="msg-item"><b>[SYSTEM]:</b> Awaiting input...</div>
                 </div>
             </div>
 
-            <button class="btn btn-mute" style="margin-top:auto;" id="muteBtn" onclick="toggleMute()">میوت کردن (Mute All): کوژاوە</button>
+            <button class="btn" style="border-color:var(--danger-red); color:var(--danger-red); margin-top:auto;" id="muteBtn" onclick="toggleMute()">[ MUTE ALL SIGNALS ]</button>
         </div>
 
         <div id="map-container">
             <div id="top-dashboard-bar">
-                <span id="mgrsCode">38SMF 47237 53104</span> 
-                <span style="opacity:0.3;">|</span>
-                <span id="coordDisplay">پانی: 36.6197 | درێژی: 44.4105</span>
-                <span style="opacity:0.3;">|</span>
-                <div class="weather-badge" id="weatherWidget">☀️ 34°C - ئاسمان پاک</div>
+                <span id="mgrsCode">MGRS: AWAITING...</span> 
+                <span>||</span>
+                <span id="coordDisplay">LAT: 00.0000 | LNG: 00.0000</span>
+                <span>||</span>
+                <div class="weather-badge" id="weatherWidget">SYS: OK</div>
             </div>
             <div id="map"></div>
         </div>
     </div>
 
+    <!-- سکریپتەکان -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mgrs/1.0.0/mgrs.min.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
     <script>
         async function requestPermissions() {
             try {
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
-                        (pos) => console.log("📍 لوکەیشن چالاکە"),
-                        (err) => console.warn("تکایە لوکەیشن چالاک بکە")
+                        (pos) => console.log("Location allowed"),
+                        (err) => console.warn("Location denied")
                     );
                 }
-            } catch (err) {
-                console.warn("مۆڵەتی لۆکەیشن نەدراوە");
-            }
+            } catch (err) {}
         }
         window.onload = requestPermissions;
 
@@ -315,7 +313,7 @@
                 document.getElementById('auth-overlay').style.display = 'none';
                 document.getElementById('container').style.display = 'flex';
                 setTimeout(() => { map.invalidateSize(); }, 300);
-                initWebRTC();
+                initWebRTC(); 
             } else {
                 document.getElementById('authError').style.display = 'block';
             }
@@ -326,14 +324,12 @@
         const map = L.map('map', { zoomControl: false }).setView([36.6197, 44.4105], 15);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // نەخشەی سەرەکی Esri کە کێشەی نییە
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 22, maxNativeZoom: 18,
-            subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-            attribution: 'Map data &copy; Esri & Contributors'
+            attribution: 'Map data &copy; Esri'
         }).addTo(map);
         L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 22, maxNativeZoom: 18, opacity: 0.85
+            maxZoom: 22, maxNativeZoom: 18, opacity: 0.8
         }).addTo(map);
 
         let markers = {};
@@ -342,15 +338,22 @@
         let dangerCircle = null;
         let targetMarker = null; 
 
+        // گۆڕاوەکانی ڕاداری فڕۆکە ✈️
+        let aircraftMarkers = {};
+        let radarInterval = null;
+        let radarActive = false;
+
         let micActive = false;
-        let speakerActive = true;
+        let speakerActive = true; 
         let localAudioStream = null;
         let peerConnections = {}; 
         let remoteAudioElements = {};
 
-        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+        const rtcConfig = {
+            iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ]
+        };
 
-        // 🌟 زیادکردنی سیستەمی کێشانی نەخشە
+        // سیستەمی کێشانی نەخشە
         let drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
 
@@ -360,7 +363,6 @@
         });
         map.addControl(drawControl);
 
-        // ناردنی ئەو شتانەی فەرماندە دەیکێشێت بۆ ئەلفاکان
         map.on(L.Draw.Event.CREATED, function (event) {
             let layer = event.layer;
             let type = event.layerType;
@@ -390,9 +392,7 @@
                 oscillator.start();
                 gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.6);
                 oscillator.stop(audioCtx.currentTime + 0.6);
-            } catch (e) {
-                console.log("دەنگی زەنگ لێ نەدرا", e);
-            }
+            } catch (e) {}
         }
 
         map.on('click', function(e) {
@@ -400,37 +400,34 @@
             const lat = e.latlng.lat;
             const lon = e.latlng.lng;
             if (targetMarker) map.removeLayer(targetMarker);
-            targetMarker = L.marker([lat, lon]).addTo(map).bindPopup("🎯 ئامانجی دیاریکراوی فەرماندە").openPopup();
+            targetMarker = L.marker([lat, lon]).addTo(map).bindPopup("> TARGET_LOCKED").openPopup();
             socket.emit('set_commander_target', { lat: lat, lon: lon });
         });
 
         function changeVolume(val) {
-            Object.values(remoteAudioElements).forEach(audio => { if(speakerActive && !isMuted) audio.volume = val; });
+            Object.values(remoteAudioElements).forEach(audio => {
+                if(speakerActive && !isMuted) audio.volume = val;
+            });
         }
 
         async function initWebRTC() {
             try {
-                localAudioStream = await navigator.mediaDevices.getUserMedia({
-                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1, sampleRate: 48000 }
-                });
+                localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1, sampleRate: 48000 } });
                 localAudioStream.getAudioTracks().forEach(t => t.enabled = false);
                 socket.emit('webrtc_join_audio', { role: 'Commander' });
-            } catch (err) {
-                console.error("ڕێگەپێدانی مایک سەرکەوتوو نەبوو!", err);
-            }
+            } catch (err) { console.error("Mic error!", err); }
         }
 
         function toggleMicrophone() {
-            if (!localAudioStream) { alert("مایک ئامادە نییە!"); return; }
+            if (!localAudioStream) { alert("Mic not ready!"); return; }
             micActive = !micActive;
             localAudioStream.getAudioTracks().forEach(t => t.enabled = micActive);
-            
             const micBtn = document.getElementById('micToggleBtn');
             if (micActive) {
-                micBtn.innerText = "🎙️ مایک: کراوەتەوە";
+                micBtn.innerText = "[ MIC: ON ]";
                 micBtn.className = "btn btn-mic-on";
             } else {
-                micBtn.innerText = "🎙️ مایک: داخراوە";
+                micBtn.innerText = "[ MIC: OFF ]";
                 micBtn.className = "btn btn-mic-off";
             }
         }
@@ -439,19 +436,93 @@
             speakerActive = !speakerActive;
             const spkBtn = document.getElementById('speakerToggleBtn');
             if (speakerActive) {
-                spkBtn.innerText = "🔊 گوێگرتن: کراوەتەوە";
+                spkBtn.innerText = "[ RECV: ON ]";
                 spkBtn.className = "btn btn-speaker-on";
                 Object.values(remoteAudioElements).forEach(a => a.muted = isMuted);
             } else {
-                spkBtn.innerText = "🔇 گوێگرتن: داخراوە";
+                spkBtn.innerText = "[ RECV: OFF ]";
                 spkBtn.className = "btn btn-speaker-off";
                 Object.values(remoteAudioElements).forEach(a => a.muted = true);
             }
         }
 
+        // 🌟 سیستەمی ڕاداری فڕۆکەی ڕاستەقینە (OpenSky API) ✈️
+        async function fetchAircraft() {
+            if(!radarActive) return;
+            try {
+                const bounds = map.getBounds();
+                const lamin = bounds.getSouth();
+                const lomin = bounds.getWest();
+                const lamax = bounds.getNorth();
+                const lomax = bounds.getEast();
+
+                const response = await fetch(`https://opensky-network.org/api/states/all?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`);
+                const data = await response.json();
+
+                let currentPlanes = [];
+
+                if (data && data.states) {
+                    data.states.forEach(plane => {
+                        const id = plane[0]; 
+                        const callsign = plane[1] ? plane[1].trim() : 'UNKNOWN';
+                        const lon = plane[5];
+                        const lat = plane[6];
+                        const altitude = plane[7] || 0; 
+                        const velocity = plane[9] || 0; 
+                        const heading = plane[10] || 0; 
+
+                        if (lat && lon) {
+                            currentPlanes.push(id);
+                            // وێنەی فڕۆکەی ئەلیکترۆنی
+                            let iconHtml = `<div style="transform: rotate(${heading}deg); font-size: 20px; text-shadow: 0 0 10px #00ffcc;">✈️</div>`;
+                            let customIcon = L.divIcon({ className: 'arrow-marker', html: iconHtml, iconSize: [24, 24], iconAnchor: [12, 12] });
+
+                            if (aircraftMarkers[id]) {
+                                aircraftMarkers[id].setLatLng([lat, lon]);
+                                aircraftMarkers[id].setIcon(customIcon);
+                            } else {
+                                aircraftMarkers[id] = L.marker([lat, lon], { icon: customIcon })
+                                    .addTo(map)
+                                    .bindPopup(`<b>FLIGHT: ${callsign}</b><br>ALT: ${Math.round(altitude)}m<br>SPD: ${Math.round(velocity * 3.6)}km/h`);
+                            }
+                        }
+                    });
+                }
+
+                Object.keys(aircraftMarkers).forEach(id => {
+                    if (!currentPlanes.includes(id)) {
+                        map.removeLayer(aircraftMarkers[id]);
+                        delete aircraftMarkers[id];
+                    }
+                });
+
+            } catch (error) {
+                console.log("Radar fetch error:", error);
+            }
+        }
+
+        function toggleRadar() {
+            radarActive = !radarActive;
+            const btn = document.getElementById('radarToggleBtn');
+            if (radarActive) {
+                btn.innerText = "[ RADAR: ON ]";
+                btn.className = "btn btn-speaker-on";
+                fetchAircraft();
+                radarInterval = setInterval(fetchAircraft, 10000); // نوێکردنەوە هەر 10 چرکە جارێک
+            } else {
+                btn.innerText = "[ RADAR: OFF ]";
+                btn.className = "btn btn-speaker-off";
+                clearInterval(radarInterval);
+                Object.values(aircraftMarkers).forEach(m => map.removeLayer(m));
+                aircraftMarkers = {};
+            }
+        }
+
         socket.on('webrtc_peer_list', async (peers) => {
             if (!localAudioStream) return;
-            for (let peerId of peers) { if (!peerConnections[peerId]) setupPeerConnection(peerId, true); }
+            for (let peerId of peers) {
+                if (!peerConnections[peerId]) setupPeerConnection(peerId, true);
+            }
         });
 
         socket.on('webrtc_offer', async (data) => {
@@ -479,7 +550,6 @@
             if (peerConnections[peerId]) return peerConnections[peerId];
             let pc = new RTCPeerConnection(rtcConfig);
             peerConnections[peerId] = pc;
-
             if (localAudioStream) { localAudioStream.getTracks().forEach(track => { pc.addTrack(track, localAudioStream); }); }
 
             pc.onicecandidate = (event) => {
@@ -512,13 +582,21 @@
 
         function createDangerCircle(lat, lng) {
             if (dangerCircle) map.removeLayer(dangerCircle);
-            dangerCircle = L.circle([lat, lng], { color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.15, radius: 800 }).addTo(map).bindPopup('<b>بازنەی فەرماندەیی</b>');
+            dangerCircle = L.circle([lat, lng], { color: '#00ff41', fillColor: '#00ff41', fillOpacity: 0.15, radius: 800, weight: 1 }).addTo(map);
         }
 
         map.on('move', function() {
             let center = map.getCenter();
-            document.getElementById('mgrsCode').innerText = `38SMF ${Math.floor(center.lat * 10000)} ${Math.floor(center.lng * 10000)}`;
-            document.getElementById('coordDisplay').innerText = `پانی: ${center.lat.toFixed(4)} | درێژی: ${center.lng.toFixed(4)}`;
+            let lat = center.lat; 
+            let lon = center.lng; 
+            
+            try {
+                let mgrsStr = mgrs.forward([lon, lat], 5);
+                document.getElementById('mgrsCode').innerText = `MGRS: ${mgrsStr}`;
+            } catch(e) {
+                document.getElementById('mgrsCode').innerText = "MGRS: CALC_ERROR";
+            }
+            document.getElementById('coordDisplay').innerText = `LAT: ${lat.toFixed(5)} | LNG: ${lon.toFixed(5)}`;
         });
 
         function goToMyLocation() {
@@ -526,32 +604,33 @@
                 let lat = pos.coords.latitude, lon = pos.coords.longitude;
                 map.setView([lat, lon], 17);
                 if (myLocationMarker) map.removeLayer(myLocationMarker);
-                myLocationMarker = L.marker([lat, lon]).addTo(map).bindPopup('<b>فەرماندە چۆمان لێرەیە</b>').openPopup();
+                myLocationMarker = L.marker([lat, lon]).addTo(map).bindPopup('> CMD_LOC').openPopup();
                 createDangerCircle(lat, lon);
             }, () => { map.setView([36.6197, 44.4105], 17); }) : map.setView([36.6197, 44.4105], 17);
         }
 
         function searchByCoord() {
             let query = document.getElementById('coordSearchInput').value;
-            if(!query) { alert('تکایە کۆدێک بنووسە!'); return; }
+            if(!query) return;
             map.setView([36.6197, 44.4105], 18);
-            L.marker([36.6197, 44.4105]).addTo(map).bindPopup(`<b>شوێنی دۆزراوە بۆ کۆدی: ${query}</b>`).openPopup();
+            L.marker([36.6197, 44.4105]).addTo(map).bindPopup(`> LOC_FOUND: ${query}`).openPopup();
+            createDangerCircle(36.6197, 44.4105);
             document.getElementById('coordSearchInput').value = '';
         }
 
         function toggleMessageModal() {
             const modal = document.getElementById('msgModal');
-            modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
-            if(modal.style.display === 'flex') document.getElementById('msgBadgeCount').style.display = 'none';
+            if (modal.style.display === 'flex') { modal.style.display = 'none'; } 
+            else { modal.style.display = 'flex'; document.getElementById('msgBadgeCount').style.display = 'none'; }
         }
 
         function renderDefaultUnits() {
             const listDiv = document.getElementById('unitsList');
             listDiv.innerHTML = '';
             for (let t = 1; t <= 8; t++) {
-                let teamHtml = `<div class="team-group"><div class="team-title">⚡ تیپی سەربازی (${t})</div>`;
+                let teamHtml = `<div class="team-group"><div class="team-title">SQUAD TEAM (${t})</div>`;
                 for (let i = (t - 1) * 4 + 1; i <= Math.min(t * 4, 30); i++) {
-                    teamHtml += `<div class="unit-row offline"><div><b>Alpha ${i}</b></div><div><span class="dot-off"></span> ۆفلاین</div></div>`;
+                    teamHtml += `<div class="unit-row offline"><div>[ Alpha ${i} ]</div><div><span class="dot-off"></span> OFFLINE</div></div>`;
                 }
                 listDiv.innerHTML += teamHtml + `</div>`;
             }
@@ -564,7 +643,7 @@
             let onlineCount = 0;
 
             for (let t = 1; t <= 8; t++) {
-                let teamHtml = `<div class="team-group"><div class="team-title">⚡ تیپی سەربازی (${t})</div>`;
+                let teamHtml = `<div class="team-group"><div class="team-title">SQUAD TEAM (${t})</div>`;
                 for (let i = (t - 1) * 4 + 1; i <= Math.min(t * 4, 30); i++) {
                     let unitKey = `Alpha ${i}`;
                     let unit = units[unitKey];
@@ -573,16 +652,19 @@
 
                     let isSos = unit && unit.status === 'SOS';
                     let rowClass = isSos ? 'unit-row sos' : (isOnline ? 'unit-row online' : 'unit-row offline');
+                    let statusText = unit ? unit.status : 'STANDBY';
                     
                     teamHtml += `
                         <div class="${rowClass}">
-                            <div><b>${unitKey}</b></div>
-                            <div>${isOnline ? '<span class="dot-on"></span> ئۆنلاین' : '<span class="dot-off"></span> ۆفلاین'} | <span style="color:${isSos?'var(--red-accent)':'var(--text-muted)'}">${unit ? unit.status : 'ئامادەباش'}</span></div>
+                            <div>[ ${unitKey} ]</div>
+                            <div>${isOnline ? '<span class="dot-on"></span> ONLINE' : '<span class="dot-off"></span> OFFLINE'} | <span style="color:${isSos?'var(--danger-red)':'#555'}">${statusText}</span></div>
                         </div>
                     `;
 
+                    // 🌟 گۆڕینی ئایکۆنەکە بۆ کڵاوی سەربازی (🪖)
                     if (unit && unit.lat && unit.lon) {
-                        let iconHtml = `<div style="transform: rotate(${unit.heading||0}deg); font-size: 20px; color: ${isSos?'var(--red-accent)':(isOnline?'var(--blue-accent)':'#475569')}; text-shadow: 0 0 5px rgba(0,0,0,0.8);">▲</div>`;
+                        let colorGlow = isSos ? 'red' : (isOnline ? '#00ff41' : 'transparent');
+                        let iconHtml = `<div style="font-size: 24px; filter: drop-shadow(0 0 8px ${colorGlow});">🪖</div>`;
                         let customIcon = L.divIcon({ className: 'arrow-marker', html: iconHtml, iconSize: [24, 24], iconAnchor: [12, 12] });
                         if (markers[unitKey]) {
                             markers[unitKey].setLatLng([unit.lat, unit.lon]);
@@ -594,12 +676,13 @@
                 }
                 listDiv.innerHTML += teamHtml + `</div>`;
             }
-            document.getElementById('onlineCountText').innerText = `ئۆنلاین: ${onlineCount} / 30`;
+            document.getElementById('onlineCountText').innerText = `ONLINE: ${onlineCount} / 30`;
         });
 
         socket.on('receiveMessage', (data) => {
             const msgBox = document.getElementById('messagesList'), modalMsg = document.getElementById('modalMessagesList');
-            let h = `<div class="msg-item ${data.type==='SOS'?'sos':''}"><b>[${data.sender}]</b>: ${data.text}<br><span style="font-size:9px; color:var(--text-muted);">${new Date().toLocaleTimeString()}</span></div>`;
+            let formattedText = data.text.replace(/\n/g, '<br>');
+            let h = `<div class="msg-item ${data.type==='SOS'?'sos':''}"><b>[${data.sender}]</b>:<br>${formattedText}<br><span style="font-size:9px; color:#555;">${new Date().toLocaleTimeString()}</span></div>`;
             msgBox.innerHTML = h + msgBox.innerHTML;
             modalMsg.innerHTML = h + modalMsg.innerHTML;
             document.getElementById('msgBadgeCount').style.display = 'flex';
@@ -607,22 +690,20 @@
 
         socket.on('receiveSOS', (data) => {
             if (!isMuted) playAlarmSound();
-            alert(`⚠️ ئاگاداری بەپەلە! ${data.sender || 'ئەلفا'} لە مەترسیدایە!`);
+            alert(`⚠️ ALERT: ${data.sender || 'Alpha'} IS IN DANGER!`);
         });
 
         function sendPresidentMessage() {
             const text = document.getElementById('presMsgInput').value;
             if(!text) return;
-            socket.emit('presidentBroadcast', { sender: 'فەرماندە چۆمان', text: text, time: Date.now() });
+            socket.emit('presidentBroadcast', { sender: 'COMMANDER', text: text, time: Date.now() });
             document.getElementById('presMsgInput').value = '';
         }
 
         function toggleMute() {
             isMuted = !isMuted;
             const btn = document.getElementById('muteBtn');
-            btn.innerText = isMuted ? "MUTE ALL (داخستنی هەموو دەنگەکان): ON" : "MUTE ALL (داخستنی هەموو دەنگەکان): OFF";
-            btn.style.borderColor = isMuted ? "var(--red-accent)" : "var(--gold-accent)";
-            btn.style.color = isMuted ? "var(--red-accent)" : "var(--gold-accent)";
+            btn.innerText = isMuted ? "[ MUTE ALL SIGNALS: ON ]" : "[ MUTE ALL SIGNALS: OFF ]";
             Object.values(remoteAudioElements).forEach(audio => { audio.muted = isMuted || !speakerActive; });
         }
     </script>
