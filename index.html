@@ -30,6 +30,28 @@
             overflow: hidden;
         }
 
+        /* 🌟 شاهانەترین ستایلی ئامرازەکانی کێشان (Royal Draw Tools) */
+        .leaflet-draw-toolbar a {
+            background: linear-gradient(135deg, var(--panel-bg), #020617) !important;
+            color: var(--gold-accent) !important;
+            border: 1px solid var(--gold-accent) !important;
+            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3) !important;
+            border-radius: 6px !important;
+            margin-bottom: 4px !important;
+            transition: all 0.3s ease !important;
+        }
+        .leaflet-draw-toolbar a:hover {
+            background: var(--gold-accent) !important;
+            color: #030712 !important;
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.6) !important;
+        }
+        .leaflet-draw-actions {
+            background: var(--panel-bg) !important;
+            border: 1px solid var(--gold-accent) !important;
+            border-radius: 6px !important;
+        }
+
         #auth-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(3, 7, 18, 0.96); z-index: 99999;
@@ -258,10 +280,11 @@
 
             <button class="btn btn-my-location" onclick="goToMyLocation()">📍 نیشانۆکەی من (پانی و درێژی خۆم)</button>
 
-            <!-- دوگمەکانی کۆنتڕۆڵی مایک و گوێگرتن بۆ فەرماندە -->
+            <!-- دوگمەکانی کۆنتڕۆڵی مایک و گوێگرتن بۆ فەرماندە بە زیادکردنی رادار -->
             <div class="radio-controls-grid">
                 <button class="btn btn-mic-off" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ مایک: داخراوە</button>
                 <button class="btn btn-speaker-on" id="speakerToggleBtn" onclick="toggleSpeaker()">🔊 گوێگرتن: کراوەتەوە</button>
+                <button class="btn" id="radarToggleBtn" style="background: linear-gradient(135deg, #475569, #334155); color: #cbd5e1; grid-column: span 2;" onclick="toggleRadar()">📡 سیستەمی رادار: ۆف</button>
             </div>
 
             <div class="volume-box">
@@ -359,6 +382,12 @@
         let myLocationMarker = null;
         let dangerCircle = null;
         let targetMarker = null; 
+        
+        // 🌟 گۆڕاوەکانی ڕێگای شین و ڕادار
+        let currentRouteLayer = null;
+        let radarActive = false;
+        let flightsLayer = L.layerGroup();
+        let radarInterval;
 
         let micActive = false;
         let speakerActive = true;
@@ -373,7 +402,6 @@
             ]
         };
 
-        // 🌟 زیادکردنی ئامرازەکانی کێشان بۆ نەخشە
         let drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
 
@@ -383,7 +411,6 @@
         });
         map.addControl(drawControl);
 
-        // 🌟 ڕێگریکردن لە جوڵانی نەخشە لەکاتی کێشانی بازنە بۆ ئەوەی بێ کێشە دروست بێت
         let isDrawing = false;
         map.on('draw:drawstart', function () { 
             isDrawing = true; 
@@ -395,7 +422,6 @@
             map.dragging.enable(); 
         });
 
-        // 🌟 ناردنی کێشراوەکان بۆ سێرڤەر و ئەلفاکان
         map.on(L.Draw.Event.CREATED, function (event) {
             let layer = event.layer;
             let type = event.layerType;
@@ -433,8 +459,8 @@
             }
         }
 
+        // 🌟 دروستکردنی ڕێڕەوی شین کاتێک فەرماندە کلیک دەکات
         map.on('click', function(e) {
-            // 🌟 ئەگەر خەریکی کێشانی بازنە بیت ئامانجەکە دروست ناکات
             if (isDrawing || e.originalEvent.target.closest('.leaflet-draw')) return;
             
             const lat = e.latlng.lat;
@@ -447,8 +473,89 @@
             targetMarker = L.marker([lat, lon]).addTo(map)
                 .bindPopup("🎯 ئامانجی دیاریکراوی فەرماندە").openPopup();
 
+            // دروستکردنی ڕێگای شین لە شوێنی فەرماندەوە بۆ ئامانج
+            if (myLocationMarker) {
+                let start = myLocationMarker.getLatLng();
+                fetch(`https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${lon},${lat}?geometries=geojson`)
+                .then(res => res.json())
+                .then(routeData => {
+                    if(routeData.routes && routeData.routes[0]) {
+                        if (currentRouteLayer) map.removeLayer(currentRouteLayer);
+                        let outline = L.geoJSON(routeData.routes[0].geometry, { style: { color: '#000000', weight: 8, opacity: 0.8 } });
+                        let inline = L.geoJSON(routeData.routes[0].geometry, { style: { color: '#3b82f6', weight: 4, opacity: 1 } });
+                        currentRouteLayer = L.layerGroup([outline, inline]).addTo(map);
+                    }
+                }).catch(err => console.log('کێشەی ڕێگا'));
+            }
+
             socket.emit('set_commander_target', { lat: lat, lon: lon });
         });
+
+        // 🌟 کۆدی تایبەت بە سیستەمی ڕادار
+        function toggleRadar() {
+            radarActive = !radarActive;
+            const btn = document.getElementById('radarToggleBtn');
+            if (radarActive) {
+                btn.innerText = "📡 سیستەمی رادار: ۆن";
+                btn.style.background = "linear-gradient(135deg, #10b981, #059669)";
+                btn.style.color = "white";
+                map.addLayer(flightsLayer);
+                drawSimulatedFlights(); 
+            } else {
+                btn.innerText = "📡 سیستەمی رادار: ۆف";
+                btn.style.background = "linear-gradient(135deg, #475569, #334155)";
+                btn.style.color = "#cbd5e1";
+                map.removeLayer(flightsLayer);
+                flightsLayer.clearLayers();
+                if(radarInterval) clearInterval(radarInterval);
+            }
+        }
+
+        function drawSimulatedFlights() {
+            flightsLayer.clearLayers();
+            let bounds = map.getBounds();
+            let latDiff = bounds.getNorth() - bounds.getSouth();
+            let lonDiff = bounds.getEast() - bounds.getWest();
+            
+            // دروستکردنی چەند خەتێکی فڕین بۆ دڵنیایی کارکردنی شاز
+            for(let i=0; i<3; i++) {
+                let startLat = bounds.getSouth() + Math.random() * latDiff;
+                let startLon = bounds.getWest() - (lonDiff * 0.5);
+                let endLat = bounds.getNorth() - Math.random() * latDiff;
+                let endLon = bounds.getEast() + (lonDiff * 0.5);
+                
+                let path = [[startLat, startLon], [endLat, endLon]];
+                L.polyline(path, { color: '#00ffcc', weight: 2, dashArray: '5, 10', opacity: 0.7 }).addTo(flightsLayer);
+                
+                let planeIcon = L.divIcon({ className: '', html: '<div style="font-size:20px; text-shadow: 0 0 5px #00ffcc; transform: rotate(45deg);">✈️</div>', iconSize:[20,20] });
+                L.marker([startLat, startLon], {icon: planeIcon}).addTo(flightsLayer)
+                 .bindPopup("گەشتی ئاسمانی (ڕادار)");
+            }
+            
+            // هەوڵدان بۆ هێنانی داتای ڕاستەقینەی تەیارەکان
+            fetch(`https://opensky-network.org/api/states/all?lamin=${bounds.getSouth() - 1}&lomin=${bounds.getWest() - 1}&lamax=${bounds.getNorth() + 1}&lomax=${bounds.getEast() + 1}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.states && data.states.length > 0) {
+                    flightsLayer.clearLayers();
+                    data.states.forEach(flight => {
+                        let lat = flight[6]; let lon = flight[5]; let heading = flight[10] || 0;
+                        if (lat && lon) {
+                            L.polyline([[lat - 0.1, lon - 0.1], [lat, lon]], { color: '#f59e0b', weight: 2, dashArray: '4, 8' }).addTo(flightsLayer);
+                            let icon = L.divIcon({
+                                className: '',
+                                html: `<div style="transform: rotate(${heading}deg); font-size: 20px; text-shadow: 0 0 5px #f59e0b;">✈️</div>`,
+                                iconSize: [24, 24], iconAnchor: [12, 12]
+                            });
+                            L.marker([lat, lon], {icon: icon}).addTo(flightsLayer)
+                            .bindPopup(`گەشتی ژمارە: ${flight[1] || 'نەزانراو'}<br>بەرزی: ${flight[7] || 0}م`);
+                        }
+                    });
+                }
+            }).catch(() => {});
+            
+            if(!radarInterval) radarInterval = setInterval(drawSimulatedFlights, 10000);
+        }
 
         function changeVolume(val) {
             Object.values(remoteAudioElements).forEach(audio => {
@@ -591,7 +698,6 @@
             }
         });
 
-        // 🌟 دروستکردنی بازنەی شین بە ڕوونی ئاسایی بۆ بینین
         function createDangerCircle(lat, lng) {
             if (dangerCircle) map.removeLayer(dangerCircle);
             dangerCircle = L.circle([lat, lng], {
@@ -602,7 +708,6 @@
             }).addTo(map).bindPopup('<div style="direction:rtl;"><b>بازنەی فەرماندەیی (لەبەرەی پارێزراو دوور مەکەونەوە)</b></div>');
         }
 
-        // 🌟 گەڕاندنەوەی فۆرمولەی MGRS ەکەی خۆت تا هیچ کێشەیەکی نەبێت
         map.on('move', function() {
             let center = map.getCenter();
             let lat = center.lat.toFixed(4);
@@ -629,7 +734,6 @@
                 map.setView([lat, lon], 17);
                 if (myLocationMarker) map.removeLayer(myLocationMarker);
                 myLocationMarker = L.marker([lat, lon]).addTo(map).bindPopup('<div style="direction:rtl;"><b>فەرماندە چۆمان لێرەیە</b></div>').openPopup();
-                // 🌟 بازنە شینەکە تەنیا لێرە دروست دەبێت کاتێک کلیک دەکەیت
                 createDangerCircle(lat, lon);
             }, () => {
                 map.setView([36.6197, 44.4105], 17);
@@ -720,7 +824,6 @@
                         </div>
                     `;
 
-                    // 🌟 گەڕاندنەوە بۆ تیرەکەی جاران بەبێ دەستکاری
                     if (unit && unit.lat && unit.lon) {
                         let rot = unit.heading || 0;
                         let color = isSos ? '#ef4444' : (isOnline ? '#3b82f6' : '#475569');
