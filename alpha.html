@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>هێزی ئەلفا - ئۆپەراسیۆنی مەیدانی</title>
-    <!-- کتێبخانەی نەخشە -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
@@ -65,6 +64,7 @@
         
         .dash-info-bar {
             padding: 10px 15px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; color: var(--cyan-accent);
+            text-shadow: 0 0 5px rgba(0, 255, 204, 0.3);
         }
 
         #map { height: 300px; border-radius: 6px; border: 1px solid var(--panel-border); margin-bottom: 12px; z-index: 1; box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
@@ -92,13 +92,13 @@
             background: var(--blue-accent); color: white; width: 60px; height: 60px;
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
             font-size: 24px; cursor: pointer; z-index: 2000; box-shadow: 0 8px 25px rgba(0,0,0,0.5);
-            border: 2px solid #fff; transition: 0.2s;
+            border: 2px solid #fff; transition: 0.3s;
         }
         .msg-fab:hover { transform: scale(1.05); }
         .msg-badge {
             position: absolute; top: -3px; right: -3px; background: var(--red-accent);
             color: white; font-size: 11px; font-weight: bold; width: 20px; height: 20px;
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(239,68,68,0.5);
         }
 
         #msgModal {
@@ -121,7 +121,7 @@
         .msg-item.commander { border-left-color: var(--gold-accent); background: rgba(245, 158, 11, 0.1); }
         .msg-item.sos { border-left-color: var(--red-accent); background: rgba(239, 68, 68, 0.1); color: #fca5a5; }
 
-        .status-msg { margin-top: 10px; color: var(--green-accent); font-size: 12px; text-align: center; }
+        .status-msg { margin-top: 10px; color: var(--green-accent); font-size: 12px; text-align: center; text-shadow: 0 0 5px rgba(16,185,129,0.5); }
         
         input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--blue-accent); cursor: pointer; margin-top: -6px; }
@@ -202,14 +202,13 @@
     <script>
         const socket = io();
         let map, userMarker, targetMarker;
-        let targetLine = null; // 🌟 هێڵی گەیشتن بۆ ئامانج
+        let targetLine = null; 
         let currentUnitName = "";
         let watchId = null;
         let unreadCount = 0;
         let currentMGRS = "چاوەڕوانی لۆکەیشن...";
-        let weatherAlertShown = false; // 🌟 بۆ ئەوەی ئاگادارکردنەوەی کەشوهەوا دووبارە نەبێتەوە بێزارکەر بێت
+        let weatherAlertShown = false; 
 
-        // متغیڕەکانی WebRTC
         let micActive = false;
         let speakerActive = true;
         let localAudioStream = null;
@@ -239,7 +238,6 @@
             }
         });
 
-        // 🌟 گەڕاندنەوەی نەخشەی سەرەکی
         function initMap() {
             map = L.map('map', { zoomControl: false }).setView([36.19, 44.01], 15);
             L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -252,7 +250,6 @@
             }).addTo(map);
         }
 
-        // 🌟 وەرگرتن و کێشانی نەخشەی فەرماندە بێ کێشەی Edit Dots
         let tacticalLayers = new L.FeatureGroup();
         map.addLayer(tacticalLayers);
 
@@ -275,12 +272,8 @@
 
         async function requestPermissions() {
             try {
-                if (navigator.geolocation) {
-                    startGPS();
-                }
-            } catch (err) {
-                console.warn("مۆڵەتی لۆکەیشن نەدراوە.");
-            }
+                if (navigator.geolocation) { startGPS(); }
+            } catch (err) { console.warn("مۆڵەتی لۆکەیشن نەدراوە."); }
         }
 
         function startGPS() {
@@ -295,26 +288,30 @@
                 const accuracy = position.coords.accuracy;
                 const displayEl = document.getElementById('coord-display');
 
-                if (accuracy > 20) {
-                    displayEl.innerText = `⚠️ بەدوای سیگناڵدا دەگەڕێت (${Math.round(accuracy)}م)...`;
-                    return;
-                }
-
                 let lat = position.coords.latitude;
                 let lon = position.coords.longitude;
                 let heading = position.coords.heading || 0;
 
-                currentMGRS = mgrs.forward([lon, lat], 5);
-                displayEl.innerText = `📍 MGRS: ${currentMGRS}`;
+                if (accuracy > 100) {
+                    displayEl.innerText = `⚠️ سیگناڵ لاوازە (${Math.round(accuracy)}م)...`;
+                }
 
+                try {
+                    currentMGRS = mgrs.forward([lon, lat], 5);
+                    displayEl.innerText = `📍 MGRS: ${currentMGRS}`;
+                } catch(e) {
+                    displayEl.innerText = `📍 MGRS: CALC_ERROR`;
+                }
+
+                // 🌟 ئایکۆنی کڵاوی سەربازی (🪖) بۆ ئەلفا خۆی
                 if (!userMarker) {
-                    userMarker = L.marker([lat, lon]).addTo(map).bindPopup(`<b>${currentUnitName} (تۆ)</b>`).openPopup();
+                    let userIcon = L.divIcon({ className: 'arrow-marker', html: '<div style="font-size: 24px; filter: drop-shadow(0 0 8px #00ffcc);">🪖</div>', iconSize: [24, 24], iconAnchor: [12, 12] });
+                    userMarker = L.marker([lat, lon], { icon: userIcon }).addTo(map).bindPopup(`<b>${currentUnitName} (تۆ)</b>`).openPopup();
                 } else {
                     userMarker.setLatLng([lat, lon]);
                 }
                 map.setView([lat, lon], 16);
 
-                // 🌟 نوێکردنەوەی هێڵی ئامانج لەگەڵ ڕۆیشتنی ئەلفا
                 if (targetMarker && targetLine) {
                     targetLine.setLatLngs([userMarker.getLatLng(), targetMarker.getLatLng()]);
                 }
@@ -329,7 +326,6 @@
             }, tacticalOptions);
         }
 
-        // 🌟 سیستەمی زیرەکی کەشوهەوا (AI Weather Alert)
         function fetchWeather(lat, lon) {
             fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`)
                 .then(r => r.json())
@@ -356,9 +352,7 @@
         }
 
         function centerOnMe() {
-            if (userMarker) {
-                map.setView(userMarker.getLatLng(), 17);
-            }
+            if (userMarker) { map.setView(userMarker.getLatLng(), 17); }
         }
 
         async function initWebRTC() {
@@ -368,9 +362,7 @@
                 });
                 localAudioStream.getAudioTracks().forEach(t => t.enabled = false);
                 socket.emit('webrtc_join_audio', { role: currentUnitName });
-            } catch (err) {
-                console.error("ڕێگەپێدانی مایکرۆفۆن بۆ WebRTC سەرکەوتوو نەبوو!", err);
-            }
+            } catch (err) { console.error("مایک کێشەی هەیە!", err); }
         }
 
         function toggleMicrophone() {
@@ -380,10 +372,10 @@
             
             const micBtn = document.getElementById('micToggleBtn');
             if (micActive) {
-                micBtn.innerText = "مایک: ON";
+                micBtn.innerText = "🎙️ مایک: کراوەتەوە";
                 micBtn.className = "btn btn-mic-on";
             } else {
-                micBtn.innerText = "مایک: OFF";
+                micBtn.innerText = "🎙️ مایک: داخراوە";
                 micBtn.className = "btn btn-mic-off";
             }
         }
@@ -392,11 +384,11 @@
             speakerActive = !speakerActive;
             const spkBtn = document.getElementById('speakerToggleBtn');
             if (speakerActive) {
-                spkBtn.innerText = "گوێگرتن: ON";
+                spkBtn.innerText = "🔊 گوێگرتن: کراوەتەوە";
                 spkBtn.className = "btn btn-speaker-on";
                 Object.values(remoteAudioElements).forEach(a => a.muted = false);
             } else {
-                spkBtn.innerText = "گوێگرتن: OFF";
+                spkBtn.innerText = "🔇 گوێگرتن: داخراوە";
                 spkBtn.className = "btn btn-speaker-off";
                 Object.values(remoteAudioElements).forEach(a => a.muted = true);
             }
@@ -469,7 +461,6 @@
             Object.values(remoteAudioElements).forEach(audio => { if(speakerActive) audio.volume = val; });
         }
 
-        // 🌟 ٤. ناردنی شوێنی دەقیق لەکاتی مەترسیدا
         function sendSOS() {
             let lat = userMarker ? userMarker.getLatLng().lat : 0;
             let lon = userMarker ? userMarker.getLatLng().lng : 0;
@@ -493,7 +484,6 @@
             addMessageToInbox(data.sender, data.text, 'normal');
         });
 
-        // 🌟 کێشانی هێڵ بۆ ئامانجی فەرماندە
         const handleCommanderTarget = (data) => {
             if (targetMarker) map.removeLayer(targetMarker);
             if (targetLine) map.removeLayer(targetLine);
@@ -502,7 +492,6 @@
                 icon: L.divIcon({ className: 'custom-target', html: '🎯', iconSize: [30, 30] })
             }).addTo(map).bindPopup("<b>ئامانجی نێردراوی فەرماندە</b>").openPopup();
             
-            // کێشانی هێڵی شین (ڕێگا) لە نێوان ئەلفا و ئامانجەکە
             if (userMarker) {
                 targetLine = L.polyline([userMarker.getLatLng(), [data.lat, data.lon]], {
                     color: '#3b82f6', weight: 4, dashArray: '10, 10', opacity: 0.8
@@ -520,11 +509,8 @@
             const inbox = document.getElementById('inboxList');
             const item = document.createElement('div');
             item.className = `msg-item ${type}`;
-            
-            // ڕێگەدان بە دەرکەوتنی دێڕی نوێ (\n) لە دەقی مەترسیدا
             let formattedText = text.replace(/\n/g, '<br>');
-            
-            item.innerHTML = `<b>${sender}:</b><br>${formattedText}<br><span style="font-size:9px; color:#475569;">${new Date().toLocaleTimeString()}</span>`;
+            item.innerHTML = `<b>${sender}:</b><br>${formattedText}<br><span style="font-size:9px; color:#94a3b8;">${new Date().toLocaleTimeString()}</span>`;
             inbox.insertBefore(item, inbox.firstChild);
             
             unreadCount++;
