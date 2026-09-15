@@ -7,172 +7,174 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
-            --bg-deep: #050810;
-            --panel-bg: #0d1323;
-            --panel-border: #1e2a47;
-            --cyan-accent: #00ffcc;
-            --blue-accent: #3b82f6;
-            --red-accent: #ef4444;
-            --gold-accent: #facc15;
-            --green-accent: #10b981;
+            --bg-deep: #0f172a; 
+            --panel-bg: rgba(30, 41, 59, 0.85); 
+            --primary-blue: #3b82f6;
+            --primary-hover: #2563eb;
+            --accent-gold: #f59e0b;
+            --danger-red: #ef4444;
+            --success-green: #10b981;
+            --border-color: rgba(148, 163, 184, 0.2);
             --text-main: #f8fafc;
+            --text-muted: #94a3b8;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        body { background: var(--bg-deep); color: var(--cyan-accent); overflow-x: hidden; }
+        body { background: var(--bg-deep); color: var(--text-main); overflow-x: hidden; }
 
-        #bg-video {
-            position: fixed; right: 0; bottom: 0; min-width: 100%; min-height: 100%;
-            z-index: -2; object-fit: cover; filter: brightness(0.2) contrast(1.2);
+        #auth-video {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; z-index: -1; opacity: 0.4;
         }
-        .overlay {
+
+        #auth-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(5, 8, 16, 0.85); z-index: -1;
+            background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(2,6,23,0.95)); z-index: 99999;
+            display: flex; justify-content: center; align-items: center;
         }
-
-        #login-screen {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            height: 100vh; padding: 20px;
+        
+        .auth-box {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px; width: 420px; text-align: center; border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }
-        .login-box {
-            background: #0a0f1c; border: 2px solid var(--blue-accent); padding: 35px;
-            border-radius: 8px; max-width: 400px; width: 100%; text-align: center;
-            box-shadow: 0 0 40px rgba(59, 130, 246, 0.2);
-        }
-        .login-box h2 { color: var(--blue-accent); font-size: 22px; margin-bottom: 20px; text-transform: uppercase; }
+        .auth-box h2 { color: var(--text-main); font-size: 22px; margin-bottom: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        
         .input-group { margin-bottom: 20px; text-align: right; }
-        .input-group label { font-size: 13px; color: #94a3b8; display: block; margin-bottom: 8px; }
+        .input-group label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 8px; }
         .input-group input {
-            width: 100%; padding: 12px; background: #050810;
-            border: 1px solid var(--panel-border); color: #fff; border-radius: 4px;
-            font-size: 15px; text-align: center; outline: none; transition: 0.3s;
+            width: 100%; padding: 14px; background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color);
+            color: white; border-radius: 8px; font-size: 15px; text-align: center; outline: none; transition: 0.3s;
         }
-        .input-group input:focus { border-color: var(--blue-accent); box-shadow: 0 0 10px rgba(59,130,246,0.3); }
+        .input-group input:focus { border-color: var(--primary-blue); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); }
 
         #main-app { display: none; padding: 15px; max-width: 520px; margin: auto; position: relative; z-index: 10; }
         
         .panel-box {
-            background: var(--panel-bg); border: 1px solid var(--panel-border);
-            border-radius: 6px; padding: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            background: var(--panel-bg); border: 1px solid var(--border-color);
+            border-radius: 10px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
             margin-bottom: 12px;
         }
 
         .header-bar {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 12px 16px; margin-bottom: 12px; background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 6px;
+            padding: 12px 16px; margin-bottom: 12px; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 10px;
         }
         
         .dash-info-bar {
-            padding: 10px 15px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; color: var(--cyan-accent);
-            text-shadow: 0 0 5px rgba(0, 255, 204, 0.3);
+            padding: 10px 15px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; color: var(--primary-blue);
+            font-weight: bold;
         }
 
-        #map { height: 300px; border-radius: 6px; border: 1px solid var(--panel-border); margin-bottom: 12px; z-index: 1; box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
+        #map { height: 320px; border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 12px; z-index: 1; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
 
         .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
         .radio-controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
 
-        .volume-box { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: white; }
+        .volume-box { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-main); }
 
         .btn {
-            background: #1e293b; color: white; border: 1px solid #334155;
-            padding: 12px; border-radius: 4px; cursor: pointer; font-size: 13px; width: 100%; font-weight: bold; transition: 0.2s;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            background: rgba(255,255,255,0.05); color: var(--text-main);
+            border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; cursor: pointer;
+            font-size: 13px; width: 100%; font-weight: bold; transition: all 0.2s;
         }
-        .btn:hover { filter: brightness(1.2); }
+        .btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-1px); }
 
-        .btn-sos { background: #7f1d1d; border-color: #dc2626; margin-top: 5px; box-shadow: 0 0 15px rgba(220, 38, 38, 0.3); }
-        .btn-mic-on { background: rgba(16, 185, 129, 0.1); border-color: var(--green-accent); color: var(--green-accent); }
-        .btn-mic-off { background: rgba(239, 68, 68, 0.1); border-color: var(--red-accent); color: var(--red-accent); }
-        .btn-speaker-on { background: rgba(59, 130, 246, 0.1); border-color: var(--blue-accent); color: var(--blue-accent); }
-        .btn-speaker-off { background: #1e293b; border-color: #475569; color: #94a3b8; }
+        .btn-sos { background: var(--danger-red); border: none; margin-top: 5px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
+        .btn-sos:hover { background: #dc2626; }
+        
+        .btn-mic-on { background: var(--success-green); color: white; border: none; }
+        .btn-mic-off { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #fca5a5; }
+        .btn-speaker-on { background: var(--primary-blue); color: white; border: none; }
+        .btn-speaker-off { background: rgba(255,255,255,0.05); color: var(--text-muted); }
 
         .msg-fab {
             position: fixed; bottom: 25px; left: 25px;
-            background: var(--blue-accent); color: white; width: 60px; height: 60px;
+            background: var(--primary-blue); color: white; width: 60px; height: 60px;
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-size: 24px; cursor: pointer; z-index: 2000; box-shadow: 0 8px 25px rgba(0,0,0,0.5);
-            border: 2px solid #fff; transition: 0.3s;
+            font-size: 24px; cursor: pointer; z-index: 2000; box-shadow: 0 8px 25px rgba(59,130,246,0.5);
+            border: none; transition: 0.3s;
         }
-        .msg-fab:hover { transform: scale(1.05); }
+        .msg-fab:hover { transform: scale(1.05); background: var(--primary-hover); }
         .msg-badge {
-            position: absolute; top: -3px; right: -3px; background: var(--red-accent);
+            position: absolute; top: -3px; right: -3px; background: var(--danger-red);
             color: white; font-size: 11px; font-weight: bold; width: 20px; height: 20px;
             border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(239,68,68,0.5);
         }
 
         #msgModal {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.8); z-index: 10000; display: none;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 10000; display: none;
             justify-content: center; align-items: center;
         }
         .msg-modal-content {
-            background: var(--panel-bg); border: 1px solid var(--panel-border);
-            width: 90%; max-width: 440px; padding: 20px; display: flex; flex-direction: column; border-radius: 8px;
+            background: var(--bg-deep); border: 1px solid var(--border-color);
+            width: 90%; max-width: 440px; padding: 25px; display: flex; flex-direction: column; border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
         .messages-list {
-            height: 280px; overflow-y: auto; background: #000;
-            border: 1px solid var(--panel-border); border-radius: 4px; padding: 10px; margin-top: 12px;
+            height: 280px; overflow-y: auto; background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-top: 15px;
         }
         .msg-item {
-            padding: 8px 12px; margin-bottom: 8px; border-radius: 4px;
-            background: rgba(15, 23, 42, 0.6); border-left: 3px solid var(--blue-accent); font-size: 12px; color: #f8fafc;
+            padding: 8px 12px; margin-bottom: 8px; border-radius: 6px;
+            background: rgba(255,255,255,0.05); border-left: 3px solid var(--primary-blue); font-size: 12px; color: var(--text-main);
         }
         .msg-item.commander { border-left-color: var(--gold-accent); background: rgba(245, 158, 11, 0.1); }
-        .msg-item.sos { border-left-color: var(--red-accent); background: rgba(239, 68, 68, 0.1); color: #fca5a5; }
+        .msg-item.sos { border-left-color: var(--danger-red); background: rgba(239, 68, 68, 0.1); color: #fca5a5; }
 
-        .status-msg { margin-top: 10px; color: var(--green-accent); font-size: 12px; text-align: center; text-shadow: 0 0 5px rgba(16,185,129,0.5); }
+        .status-msg { margin-top: 10px; color: var(--success-green); font-size: 12px; text-align: center; }
         
         input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--blue-accent); cursor: pointer; margin-top: -6px; }
-        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #334155; border-radius: 2px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--primary-blue); cursor: pointer; margin-top: -6px; box-shadow: 0 0 10px rgba(59,130,246,0.5); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; }
     </style>
 </head>
 <body>
 
-    <video autoplay muted loop id="bg-video">
-        <source src="https://assets.mixkit.co/videos/preview/mixkit-abstract-technology-grid-loop-31804-large.mp4" type="video/mp4">
-    </video>
-    <div class="overlay"></div>
-
-    <div id="login-screen">
-        <div class="login-box">
+    <div id="auth-overlay">
+        <video autoplay muted loop id="auth-video">
+            <source src="https://assets.mixkit.co/videos/preview/mixkit-global-world-map-animation-31801-large.mp4" type="video/mp4">
+        </video>
+        <div class="auth-box glass-panel">
             <h2>🛡️ چوونەژوورەوەی یەکەی ئەلفا</h2>
             <div class="input-group">
-                <label>کلیل یان ناوی یەکە (نموونە: Alpha 1):</label>
+                <label>ناوی یەکە (نموونە: Alpha 1):</label>
                 <input type="text" id="api-key-input" placeholder="Alpha 1">
             </div>
-            <button class="btn" style="background: var(--blue-accent); color: white;" onclick="login()">چوونەژوورەوە 🔑</button>
-            <div id="login-error" style="color:var(--red-accent); font-size:12px; margin-top:10px;"></div>
+            <button class="btn" style="background: var(--primary-blue); color: white; border:none;" onclick="login()">چوونەژوورەوە</button>
+            <div id="login-error" style="color:#fca5a5; font-size:12px; margin-top:10px;"></div>
         </div>
     </div>
 
     <div id="main-app">
-        <div class="header-bar">
-            <div>یەکە: <span id="unit-name-display" style="color:var(--green-accent); font-weight:bold;">-</span></div>
-            <div style="font-size:11px; color:#10b981; font-weight:bold; letter-spacing:1px;">● بێسیمی مەیدانی</div>
+        <div class="header-bar panel-box">
+            <div>یەکە: <span id="unit-name-display" style="color:var(--success-green); font-weight:bold;">-</span></div>
+            <div style="font-size:11px; color:var(--text-muted);"><span style="color:var(--success-green);">●</span> بێسیمی مەیدانی</div>
         </div>
 
         <div class="panel-box dash-info-bar">
-            <span id="coord-display">📍 MGRS: چاوەڕوانی سیگناڵ...</span>
+            <span id="coord-display">📍 MGRS: چاوەڕوانی...</span>
             <span id="weather-info">🌤️ --°C</span>
         </div>
 
         <div id="map"></div>
 
         <div class="radio-controls-grid">
-            <button class="btn btn-mic-off" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ مایک: داخراوە</button>
-            <button class="btn btn-speaker-on" id="speakerToggleBtn" onclick="toggleSpeaker()">🔊 گوێگرتن: کراوەتەوە</button>
+            <button class="btn btn-mic-off" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ مایک: OFF</button>
+            <button class="btn btn-speaker-on" id="speakerToggleBtn" onclick="toggleSpeaker()">🔊 گوێگرتن: ON</button>
         </div>
 
         <div class="panel-box volume-box">
-            <label for="volControl">🔊 ئاستی دەنگی بێسیم:</label>
+            <label for="volControl">🔊 ئاستی دەنگ:</label>
             <input type="range" id="volControl" min="0" max="1" step="0.1" value="1" onchange="adjustVolume(this.value)">
         </div>
 
         <div class="controls-grid">
-            <button class="btn" style="background: #4c1d95; border-color: #6d28d9;" onclick="centerOnMe()">🧭 شوێنی من</button>
-            <button class="btn" style="background: #065f46; border-color: #047857;" onclick="startGPS()">📡 دەستپێکردنی GPS</button>
+            <button class="btn" style="background: rgba(139, 92, 246, 0.2); border-color: rgba(139, 92, 246, 0.4); color: #c4b5fd;" onclick="centerOnMe()">🧭 شوێنی من</button>
+            <button class="btn" style="background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7;" onclick="startGPS()">📡 دەستپێکردنی GPS</button>
         </div>
 
         <button class="btn btn-sos" onclick="sendSOS()">🚨 ناردنی نیشانەی مەترسی بەپەلە (SOS)</button>
@@ -185,10 +187,10 @@
     </div>
 
     <div id="msgModal">
-        <div class="msg-modal-content">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px; border-bottom: 1px solid #1e293b; padding-bottom: 10px;">
-                <h3 style="color:var(--blue-accent); font-size:14px; margin:0;">📜 سندوقی فەرمان و پەیامەکان</h3>
-                <button onclick="toggleMsgModal()" style="background:transparent; color:var(--red-accent); border:1px solid var(--red-accent); border-radius:4px; padding:2px 8px; cursor:pointer;">✕</button>
+        <div class="msg-modal-content glass-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+                <h3 style="color:var(--text-main); font-size:16px; margin:0;">سندوقی پەیامەکان</h3>
+                <button onclick="toggleMsgModal()" style="background:rgba(239,68,68,0.1); color:var(--danger-red); border:none; border-radius:6px; padding:6px 12px; cursor:pointer;">داخستن</button>
             </div>
             <div class="messages-list" id="inboxList">
                 <div class="msg-item"><b>سیستەم:</b> بەخێربێیت بۆ بەشی ئەلفای مەیدانی.</div>
@@ -264,10 +266,7 @@
             } else if (data.type === 'marker') {
                 layer = L.marker(data.latlng);
             }
-
-            if (layer) {
-                tacticalLayers.addLayer(layer);
-            }
+            if (layer) { tacticalLayers.addLayer(layer); }
         });
 
         async function requestPermissions() {
@@ -303,9 +302,9 @@
                     displayEl.innerText = `📍 MGRS: CALC_ERROR`;
                 }
 
-                // 🌟 ئایکۆنی کڵاوی سەربازی (🪖) بۆ ئەلفا خۆی
+                // 🌟 ئایکۆنی کڵاوی سەربازی (🪖) بەکارخرا
                 if (!userMarker) {
-                    let userIcon = L.divIcon({ className: 'arrow-marker', html: '<div style="font-size: 24px; filter: drop-shadow(0 0 8px #00ffcc);">🪖</div>', iconSize: [24, 24], iconAnchor: [12, 12] });
+                    let userIcon = L.divIcon({ className: 'arrow-marker', html: '<div style="font-size: 26px; filter: drop-shadow(0 0 8px #3b82f6);">🪖</div>', iconSize: [26, 26], iconAnchor: [13, 13] });
                     userMarker = L.marker([lat, lon], { icon: userIcon }).addTo(map).bindPopup(`<b>${currentUnitName} (تۆ)</b>`).openPopup();
                 } else {
                     userMarker.setLatLng([lat, lon]);
@@ -372,10 +371,10 @@
             
             const micBtn = document.getElementById('micToggleBtn');
             if (micActive) {
-                micBtn.innerText = "🎙️ مایک: کراوەتەوە";
+                micBtn.innerText = "🎙️ مایک: ON";
                 micBtn.className = "btn btn-mic-on";
             } else {
-                micBtn.innerText = "🎙️ مایک: داخراوە";
+                micBtn.innerText = "🎙️ مایک: OFF";
                 micBtn.className = "btn btn-mic-off";
             }
         }
@@ -384,11 +383,11 @@
             speakerActive = !speakerActive;
             const spkBtn = document.getElementById('speakerToggleBtn');
             if (speakerActive) {
-                spkBtn.innerText = "🔊 گوێگرتن: کراوەتەوە";
+                spkBtn.innerText = "🔊 گوێگرتن: ON";
                 spkBtn.className = "btn btn-speaker-on";
                 Object.values(remoteAudioElements).forEach(a => a.muted = false);
             } else {
-                spkBtn.innerText = "🔇 گوێگرتن: داخراوە";
+                spkBtn.innerText = "🔇 گوێگرتن: OFF";
                 spkBtn.className = "btn btn-speaker-off";
                 Object.values(remoteAudioElements).forEach(a => a.muted = true);
             }
