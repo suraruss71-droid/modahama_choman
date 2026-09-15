@@ -263,7 +263,6 @@
 
             <button class="btn btn-my-location" onclick="goToMyLocation()">📍 نیشانۆکەی من (پانی و درێژی خۆم)</button>
 
-            <!-- دوگمەکانی کۆنتڕۆڵی مایک و گوێگرتن بۆ فەرماندە بە زیادکردنی رادار -->
             <div class="radio-controls-grid">
                 <button class="btn btn-mic-off" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ مایک: داخراوە</button>
                 <button class="btn btn-speaker-on" id="speakerToggleBtn" onclick="toggleSpeaker()">🔊 گوێگرتن: کراوەتەوە</button>
@@ -366,7 +365,6 @@
         let dangerCircle = null;
         let targetMarker = null; 
         
-        // 🌟 گۆڕاوەکانی ڕێگای شین و ڕادار
         let currentRouteLayer = null;
         let radarActive = false;
         let flightsLayer = L.layerGroup();
@@ -405,7 +403,6 @@
             map.dragging.enable(); 
         });
 
-        // 🌟 زیادکردنی سیڤکردنی جۆری وێنەکە بۆ ئەوەی لە کاتی سڕینەوە ئەلفاش ئاگادار بێت
         map.on(L.Draw.Event.CREATED, function (event) {
             let layer = event.layer;
             let type = event.layerType;
@@ -429,25 +426,38 @@
             socket.emit('tactical_draw', dataToSend);
         });
 
-        // 🌟 ناردنی فەرمان بۆ سڕینەوە و دووبارە ناردنەوەی وێنەکان بۆ ئەلفا لە کاتی بەکارهێنانی ئامرازی سڕینەوە
-        map.on('draw:deleted', function(e) {
-            socket.emit('tactical_draw_clear'); // سڕینەوەی گشت وێنەکان لای ئەلفا
+        // 🌟 فێڵەکەی سێرڤەر بۆ سڕینەوە و دەستکاریکردن بەبێ کێشە
+        function syncAllDrawings() {
+            socket.emit('tactical_draw_clear'); // بۆ دڵنیایی زیاتر
+            socket.emit('tactical_draw', { type: 'clear' }); // ڕێگای سەرەکی بۆ بڕینی بلۆکی سێرڤەرەکە
             
-            // ناردنەوەی ئەو وێنانەی کە نەِسڕاونەتەوە و ماونەتەوە
-            drawnItems.eachLayer(function(layer) {
-                let type = layer.feature && layer.feature.properties ? layer.feature.properties.type : 'marker';
-                let dataToSend = { type: type };
-                if (type === 'circle') {
-                    dataToSend.latlng = layer.getLatLng();
-                    dataToSend.radius = layer.getRadius();
-                } else if (type === 'polygon' || type === 'rectangle' || type === 'polyline') {
-                    dataToSend.latlngs = layer.getLatLngs();
-                } else if (type === 'marker') {
-                    dataToSend.latlng = layer.getLatLng();
-                }
-                socket.emit('tactical_draw', dataToSend);
-            });
-        });
+            setTimeout(() => {
+                drawnItems.eachLayer(function(layer) {
+                    let type = layer.feature && layer.feature.properties ? layer.feature.properties.type : null;
+                    if (!type) {
+                        if (layer instanceof L.Circle) type = 'circle';
+                        else if (layer instanceof L.Polygon) type = 'polygon';
+                        else if (layer instanceof L.Rectangle) type = 'rectangle';
+                        else if (layer instanceof L.Polyline) type = 'polyline';
+                        else if (layer instanceof L.Marker) type = 'marker';
+                    }
+                    
+                    let dataToSend = { type: type };
+                    if (type === 'circle') {
+                        dataToSend.latlng = layer.getLatLng();
+                        dataToSend.radius = layer.getRadius();
+                    } else if (type === 'polygon' || type === 'rectangle' || type === 'polyline') {
+                        dataToSend.latlngs = layer.getLatLngs();
+                    } else if (type === 'marker') {
+                        dataToSend.latlng = layer.getLatLng();
+                    }
+                    socket.emit('tactical_draw', dataToSend);
+                });
+            }, 400); // ٤٠٠ میللی چرکە بۆ دڵنیابوون لە گەیشتنی فەرمانی سڕینەوەکە بە ئەلفا
+        }
+
+        map.on('draw:deleted', syncAllDrawings);
+        map.on('draw:edited', syncAllDrawings);
 
         function playAlarmSound() {
             try {
@@ -469,7 +479,6 @@
             }
         }
 
-        // 🌟 دروستکردنی خەتێکی ڕاست و ڕەوان (Tactical Line) لە جیاتی ڕێگای پێچاوپێچ
         map.on('click', function(e) {
             if (isDrawing || e.originalEvent.target.closest('.leaflet-draw')) return;
             
@@ -487,7 +496,6 @@
                 let start = myLocationMarker.getLatLng();
                 if (currentRouteLayer) map.removeLayer(currentRouteLayer);
                 
-                // خەتێکی ڕاست و دروستی سەربازی دوور لە کێشەی (گۆگڵ ماپ)
                 let outline = L.polyline([start, [lat, lon]], { color: '#000000', weight: 6, opacity: 0.8 });
                 let inline = L.polyline([start, [lat, lon]], { color: '#3b82f6', weight: 3, opacity: 1, dashArray: '10, 10' });
                 
@@ -497,7 +505,6 @@
             socket.emit('set_commander_target', { lat: lat, lon: lon });
         });
 
-        // 🌟 ڕادار بە سەدا سەد ڕاستەقینە کرا و سیمولەیشن سڕایەوە
         function toggleRadar() {
             radarActive = !radarActive;
             const btn = document.getElementById('radarToggleBtn');
@@ -520,7 +527,6 @@
         function fetchRadarData() {
             let bounds = map.getBounds();
             
-            // تەنیا داتای لایڤ و ڕاستەقینە دەهێنێت لە ئاسمان
             fetch(`https://opensky-network.org/api/states/all?lamin=${bounds.getSouth() - 1}&lomin=${bounds.getWest() - 1}&lamax=${bounds.getNorth() + 1}&lomax=${bounds.getEast() + 1}`)
             .then(res => res.json())
             .then(data => {
