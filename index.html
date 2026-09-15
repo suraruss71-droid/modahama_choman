@@ -109,6 +109,10 @@
             display: flex; align-items: center; justify-content: space-between;
         }
 
+        .radio-controls-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;
+        }
+
         .search-coord-box {
             background: rgba(2, 6, 23, 0.9); border: 1px solid var(--panel-border);
             padding: 6px; border-radius: 6px; margin-bottom: 6px;
@@ -192,11 +196,17 @@
 
         .btn {
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white; border: none; padding: 5px; border-radius: 4px;
-            cursor: pointer; width: 100%; font-weight: bold; font-size: 11px; margin-top: 3px;
+            color: white; border: none; padding: 8px; border-radius: 6px;
+            cursor: pointer; width: 100%; font-weight: bold; font-size: 12px; margin-top: 3px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
+        .btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
         .btn-mute { background: linear-gradient(135deg, #ca8a04, #a16207); }
-        .btn-mic { background: linear-gradient(135deg, #059669, #047857); }
+        .btn-mic-on { background: linear-gradient(135deg, #059669, #047857); border: 1px solid #10b981; }
+        .btn-mic-off { background: linear-gradient(135deg, #dc2626, #b91c1c); border: 1px solid #ef4444; }
+        .btn-speaker-on { background: linear-gradient(135deg, #2563eb, #1d4ed8); border: 1px solid #3b82f6; }
+        .btn-speaker-off { background: linear-gradient(135deg, #475569, #334155); border: 1px solid #94a3b8; color: #cbd5e1; }
         .btn-send { background: linear-gradient(135deg, #10b981, #059669); }
         .btn-my-location { background: linear-gradient(135deg, #8b5cf6, #7c3aed); margin-bottom: 4px; }
 
@@ -245,10 +255,14 @@
 
             <button class="btn btn-my-location" onclick="goToMyLocation()">📍 نیشانۆکەی من (پانی و درێژی خۆم)</button>
 
-            <button class="btn btn-mic" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ پەخشی دەنگی WebRTC: کوژاوە (Muted)</button>
+            <!-- دوگمەکانی کۆنتڕۆڵی مایک و گوێگرتن بۆ فەرماندە -->
+            <div class="radio-controls-grid">
+                <button class="btn btn-mic-off" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ مایک: داخراوە</button>
+                <button class="btn btn-speaker-on" id="speakerToggleBtn" onclick="toggleSpeaker()">🔊 گوێگرتن: کراوەتەوە</button>
+            </div>
 
             <div class="volume-box">
-                <label for="volumeSlider">🔊 ئاستی دەنگ:</label>
+                <label for="volumeSlider">🔊 ئاستی دەنگی بێسیم:</label>
                 <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="1" onchange="changeVolume(this.value)">
             </div>
 
@@ -294,7 +308,6 @@
     <script>
         async function requestPermissions() {
             try {
-                await navigator.mediaDevices.getUserMedia({ audio: true });
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
                         (pos) => console.log("📍 لوکەیشن چالاکە"),
@@ -302,7 +315,7 @@
                     );
                 }
             } catch (err) {
-                console.warn("مۆڵەتی مایکرۆفۆن یان لوکەیشن نەدراوە");
+                console.warn("مۆڵەتی لۆکەیشن نەدراوە");
             }
         }
         window.onload = requestPermissions;
@@ -313,6 +326,7 @@
                 document.getElementById('auth-overlay').style.display = 'none';
                 document.getElementById('container').style.display = 'flex';
                 setTimeout(() => { map.invalidateSize(); }, 300);
+                initWebRTC(); // پەیوەندی بێسیم چالاک دەکات ڕاستەوخۆ دوای چوونەژوورەوە
             } else {
                 document.getElementById('authError').style.display = 'block';
             }
@@ -342,9 +356,11 @@
         let dangerCircle = null;
         let targetMarker = null; 
 
+        // متغیڕەکانی تایبەت بە WebRTC بۆ دەنگی ڕاستەوخۆی دوو قۆڵی و کۆمەڵەیی بە کوالێتی بەرز
         let micActive = false;
+        let speakerActive = true;
         let localAudioStream = null;
-        let peerConnections = {};
+        let peerConnections = {}; 
         let remoteAudioElements = {};
 
         const rtcConfig = {
@@ -390,57 +406,64 @@
 
         function changeVolume(val) {
             Object.values(remoteAudioElements).forEach(audio => {
-                audio.volume = val;
+                if(speakerActive && !isMuted) audio.volume = val;
             });
         }
 
-        async function toggleMicrophone() {
-            const micBtn = document.getElementById('micToggleBtn');
+        // 🌟 دەستپێکردنی تۆڕی بێسیم بێ ئەوەی مایک کراوە بێت (تەنها بۆ گوێگرتن سەرەتا)
+        async function initWebRTC() {
             try {
-                if (!micActive) {
-                    localAudioStream = await navigator.mediaDevices.getUserMedia({
-                        audio: {
-                            echoCancellation: true,
-                            noiseSuppression: true,
-                            autoGainControl: true,
-                            channelCount: 1,
-                            sampleRate: 48000
-                        }
-                    });
-
-                    micActive = true;
-                    micBtn.innerText = "🎙️ پەخشی دەنگی WebRTC: چالاکە (پەخش دەڕوات)";
-                    micBtn.style.background = "linear-gradient(135deg, #dc2626, #b91c1c)";
-
-                    socket.emit('webrtc_join_audio', { role: 'Commander' });
-
-                } else {
-                    if (localAudioStream) {
-                        localAudioStream.getTracks().forEach(track => track.stop());
-                        localAudioStream = null;
-                    }
-
-                    Object.keys(peerConnections).forEach(peerId => {
-                        if (peerConnections[peerId]) {
-                            peerConnections[peerId].close();
-                            delete peerConnections[peerId];
-                        }
-                    });
-
-                    micActive = false;
-                    micBtn.innerText = "🎙️ پەخشی دەنگی WebRTC: کوژاوە (Muted)";
-                    micBtn.style.background = "linear-gradient(135deg, #059669, #047857)";
-
-                    socket.emit('webrtc_leave_audio');
-                }
+                localAudioStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1, sampleRate: 48000 }
+                });
+                
+                // بێدەنگکردنی مایک لە سەرەتادا بێ پچڕانی پەیوەندی
+                localAudioStream.getAudioTracks().forEach(t => t.enabled = false);
+                socket.emit('webrtc_join_audio', { role: 'Commander' });
             } catch (err) {
-                alert('ڕێگەپێدانی مایکرۆفۆن بۆ WebRTC سەرکەوتوو نەبوو!');
-                console.error(err);
+                console.error("ڕێگەپێدانی مایکرۆفۆن بۆ WebRTC سەرکەوتوو نەبوو!", err);
             }
         }
 
+        // 🎙️ کۆنتڕۆڵی مایک بە تەنها (بەبێ تێکدانی گوێگرتن)
+        function toggleMicrophone() {
+            if (!localAudioStream) {
+                alert("مایک ئامادە نییە، تکایە ڕێگەپێدان بدە!");
+                return;
+            }
+            
+            micActive = !micActive;
+            localAudioStream.getAudioTracks().forEach(t => t.enabled = micActive);
+            
+            const micBtn = document.getElementById('micToggleBtn');
+            if (micActive) {
+                micBtn.innerText = "🎙️ مایک: کراوەتەوە";
+                micBtn.className = "btn btn-mic-on";
+            } else {
+                micBtn.innerText = "🎙️ مایک: داخراوە";
+                micBtn.className = "btn btn-mic-off";
+            }
+        }
+
+        // 🔊 کۆنتڕۆڵی گوێگرتن بە تەنها (بەبێ تێکدانی مایک)
+        function toggleSpeaker() {
+            speakerActive = !speakerActive;
+            const spkBtn = document.getElementById('speakerToggleBtn');
+            
+            if (speakerActive) {
+                spkBtn.innerText = "🔊 گوێگرتن: کراوەتەوە";
+                spkBtn.className = "btn btn-speaker-on";
+                Object.values(remoteAudioElements).forEach(a => a.muted = isMuted);
+            } else {
+                spkBtn.innerText = "🔇 گوێگرتن: داخراوە";
+                spkBtn.className = "btn btn-speaker-off";
+                Object.values(remoteAudioElements).forEach(a => a.muted = true);
+            }
+        }
+
+        // بەڕێوەبردنی شانۆیی سیگناڵینگی WebRTC (Offer, Answer, ICE Candidates)
         socket.on('webrtc_peer_list', async (peers) => {
-            if (!micActive || !localAudioStream) return;
+            if (!localAudioStream) return;
             for (let peerId of peers) {
                 if (!peerConnections[peerId]) {
                     setupPeerConnection(peerId, true);
@@ -481,6 +504,7 @@
             let pc = new RTCPeerConnection(rtcConfig);
             peerConnections[peerId] = pc;
 
+            // زیادکردنی ستریمی دەنگی خۆمان بۆ پەیوەندییەکە (تەنانەت ئەگەر بێدەنگیش بێت)
             if (localAudioStream) {
                 localAudioStream.getTracks().forEach(track => {
                     pc.addTrack(track, localAudioStream);
@@ -497,7 +521,7 @@
                 if (!remoteAudioElements[peerId]) {
                     let audioEl = document.createElement('audio');
                     audioEl.autoplay = true;
-                    if (isMuted) audioEl.muted = true;
+                    audioEl.muted = !speakerActive || isMuted;
                     let slider = document.getElementById('volumeSlider');
                     audioEl.volume = slider ? slider.value : 1;
                     audioEl.srcObject = event.streams[0];
@@ -741,7 +765,7 @@
             btn.style.background = isMuted ? "linear-gradient(135deg, #dc2626, #b91c1c)" : "linear-gradient(135deg, #ca8a04, #a16207)";
 
             Object.values(remoteAudioElements).forEach(audio => {
-                audio.muted = isMuted;
+                audio.muted = isMuted || !speakerActive;
             });
         }
     </script>
