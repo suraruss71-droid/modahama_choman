@@ -9,12 +9,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
     
     <style>
-        /* دیزاینی شاهانە و مۆدێرن (Royal Tactical UI) */
         :root {
-            --bg-base: #0f172a; /* شینی دەریایی تاریک */
-            --panel-bg: rgba(15, 23, 42, 0.85); /* شوشەیی نەرم */
+            --bg-base: #0f172a;
+            --panel-bg: rgba(15, 23, 42, 0.85);
             --primary-blue: #3b82f6;
-            --royal-gold: #fbbf24; /* زێڕینی شاهانە */
+            --royal-gold: #fbbf24;
             --danger-red: #ef4444;
             --success-green: #10b981;
             --border-light: rgba(255, 255, 255, 0.1);
@@ -41,7 +40,6 @@
             box-shadow: var(--shadow-soft);
         }
 
-        /* شاشەی چوونە ژوورەوە */
         #auth-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: linear-gradient(135deg, #0f172a, #020617); z-index: 99999;
@@ -70,7 +68,6 @@
         .auth-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(251, 191, 36, 0.5); }
         .auth-error { color: #fca5a5; font-size: 13px; margin-top: 15px; display: none; background: rgba(239, 68, 68, 0.1); padding: 8px; border-radius: 6px; }
 
-        /* پێکهاتەی سەرەکی */
         #container { display: flex; height: 100vh; width: 100vw; position: relative; }
         
         #sidebar {
@@ -242,7 +239,6 @@
 
             <button class="btn btn-my-location" style="background:rgba(59,130,246,0.1); color:var(--primary-blue); border-color:var(--primary-blue);" onclick="goToMyLocation()">📍 دیاریکردنی پێگەی من</button>
 
-            <!-- کۆنتڕۆڵی ڕادار بۆ فەرماندە -->
             <div class="radio-controls-grid">
                 <button class="btn btn-mic-off" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ مایک: OFF</button>
                 <button class="btn btn-speaker-on" id="speakerToggleBtn" onclick="toggleSpeaker()">🔊 گوێگرتن: ON</button>
@@ -281,9 +277,6 @@
         </div>
 
         <div id="map-container">
-            <!-- 🌟 بۆ چارەسەری کێشەی کێشانی بازنە، دەکەینە dir="ltr" بۆ ئەوەی ڕێڕەوی ماوس ڕاست بێت -->
-            <div id="map" dir="ltr" style="width: 100%; height: 100%;"></div>
-            
             <div id="top-dashboard-bar" class="glass-panel">
                 <span id="mgrsCode">MGRS: جێگیرکردن...</span> 
                 <span style="opacity:0.3;">|</span>
@@ -291,16 +284,22 @@
                 <span style="opacity:0.3;">|</span>
                 <div class="weather-badge" id="weatherWidget">☁️ کەشوهەوا: خوێندنەوە...</div>
             </div>
+            <div id="map"></div>
         </div>
     </div>
 
-    <!-- سکریپتەکان بە لینکی دڵنیاییەوە -->
+    <!-- سکریپتەکان -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <!-- گۆڕینی لینکی MGRS بۆ چارەسەری کێشەکان -->
     <script src="https://unpkg.com/mgrs@1.0.0/dist/mgrs.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     
     <script>
+        if (typeof mgrs === 'undefined') {
+            window.mgrs = { forward: function() { return "OFFLINE"; } };
+        }
+
         async function requestPermissions() {
             try {
                 if (navigator.geolocation) {
@@ -320,8 +319,8 @@
                 document.getElementById('container').style.display = 'flex';
                 setTimeout(() => { 
                     map.invalidateSize(); 
-                    // 🌟 چارەسەری کێشەی نەبوونی فەرماندە: ڕاستەوخۆ شوێنەکە دروست دەکات کاتێک دەچێتە ژوورەوە
-                    goToMyLocation();
+                    let center = map.getCenter();
+                    updateMapInfo(center.lat, center.lng);
                 }, 300);
                 initWebRTC(); 
             } else {
@@ -334,7 +333,6 @@
         const map = L.map('map', { zoomControl: false }).setView([36.6197, 44.4105], 15);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // نەخشەی سەرەکی Esri Satellite
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 22, maxNativeZoom: 18,
             attribution: 'Map data &copy; Esri'
@@ -361,7 +359,6 @@
 
         const rtcConfig = { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ] };
 
-        // 🌟 سیستەمی کێشانی نەخشە
         let drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
 
@@ -371,10 +368,16 @@
         });
         map.addControl(drawControl);
 
-        // 🌟 ڕێگریکردن لە تێکەڵبوونی کێشانی بازنە و دانانی ئامانج
+        // 🛑 ڕاگرتنی جوڵانی نەخشە لەکاتی کێشان بۆ ئەوەی بازنەکان بە جوانی دروست ببن
         let isDrawing = false;
-        map.on('draw:drawstart', function () { isDrawing = true; });
-        map.on('draw:drawstop', function () { setTimeout(() => { isDrawing = false; }, 200); });
+        map.on('draw:drawstart', function () { 
+            isDrawing = true; 
+            map.dragging.disable(); 
+        });
+        map.on('draw:drawstop', function () { 
+            setTimeout(() => { isDrawing = false; }, 200); 
+            map.dragging.enable(); 
+        });
 
         map.on(L.Draw.Event.CREATED, function (event) {
             let layer = event.layer;
@@ -409,7 +412,7 @@
         }
 
         map.on('click', function(e) {
-            // 🌟 ئەگەر خەریکی کێشانی بازنە بیت، ئامانج دانانێت تا کێشانەکە تەواو دەبێت
+            // ئەگەر خەریکی کێشانی بازنە بوو ئامانجەکە دروست نابێت
             if(isDrawing || e.originalEvent.target.closest('.leaflet-draw')) return;
             const lat = e.latlng.lat;
             const lon = e.latlng.lng;
@@ -599,10 +602,9 @@
             if (remoteAudioElements[peerId]) { remoteAudioElements[peerId].remove(); delete remoteAudioElements[peerId]; }
         });
 
-        // 🌟 دروستکردنی بازنەی شینی فەرماندە وەک داوات کرد
         function createDangerCircle(lat, lng) {
             if (dangerCircle) map.removeLayer(dangerCircle);
-            dangerCircle = L.circle([lat, lng], { color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.15, radius: 800 }).addTo(map).bindPopup('<b>بازنەی فەرماندەیی (لەبەرەی پارێزراو دوور مەکەونەوە)</b>');
+            dangerCircle = L.circle([lat, lng], { color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.35, radius: 800 }).addTo(map).bindPopup('<b>بازنەی فەرماندەیی (لەبەرەی پارێزراو دوور مەکەونەوە)</b>');
         }
 
         map.on('moveend', function() {
@@ -610,10 +612,9 @@
             updateMapInfo(center.lat, center.lng);
         });
 
-        // 🌟 چارەسەری یەکجاری بۆ MGRS بە شێوەیەکی پارێزراو بۆ ئەوەی هەرگیز ئیرۆر نەدات
         function updateMapInfo(lat, lon) {
             try {
-                let mgrsStr = mgrs.forward([Number(lon), Number(lat)], 5);
+                let mgrsStr = window.mgrs.forward([Number(lon), Number(lat)], 5);
                 document.getElementById('mgrsCode').innerText = `MGRS: ${mgrsStr}`;
             } catch(e) {
                 document.getElementById('mgrsCode').innerText = "MGRS: ERROR";
@@ -699,7 +700,6 @@
                         </div>
                     `;
 
-                    // 🌟 گەڕاندنەوەی بۆ تیرەکەی جاران (➤) ڕێک وەک خۆت داوات کرد
                     if (unit && unit.lat && unit.lon) {
                         let rot = unit.heading || 0;
                         let color = isSos ? '#ef4444' : (isOnline ? '#3b82f6' : '#475569');
