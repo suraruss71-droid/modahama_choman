@@ -16,13 +16,21 @@
             --accent-gold: #f59e0b;
             --danger-red: #ef4444;
             --success-green: #10b981;
-            --border-color: #334155;
+            --border-color: rgba(148, 163, 184, 0.2);
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        body { background-color: var(--bg-deep); color: var(--text-main); overflow-x: hidden; }
+        body { background: var(--bg-deep); color: var(--text-main); overflow-x: hidden; }
+
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
 
         #auth-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -30,12 +38,10 @@
             display: flex; justify-content: center; align-items: center;
         }
         
-        .glass-panel {
-            background: var(--panel-bg); border: 1px solid var(--border-color);
-            padding: 40px; width: 400px; text-align: center; border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        .auth-box {
+            padding: 40px; width: 400px; text-align: center;
         }
-        .glass-panel h2 { color: var(--primary-blue); font-size: 22px; margin-bottom: 20px; }
+        .auth-box h2 { color: var(--primary-blue); font-size: 22px; margin-bottom: 20px; }
         
         .input-group { margin-bottom: 20px; text-align: right; }
         .input-group label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 8px; }
@@ -46,15 +52,15 @@
         .input-group input:focus { border-color: var(--primary-blue); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
         
         .btn {
-            background: var(--primary-blue); color: white; border: none; padding: 12px; border-radius: 8px; 
-            cursor: pointer; font-size: 14px; width: 100%; font-weight: bold; transition: all 0.2s;
+            background: var(--primary-blue); color: white; border: none; padding: 14px; border-radius: 8px; 
+            cursor: pointer; font-size: 15px; width: 100%; font-weight: bold; transition: all 0.2s;
         }
         .btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
 
         #main-app { display: none; padding: 15px; max-width: 520px; margin: auto; position: relative; z-index: 10; }
         
         .panel-box {
-            background: #0f172a; border: 1px solid var(--border-color);
+            background: var(--panel-bg); border: 1px solid var(--border-color);
             border-radius: 10px; padding: 15px; margin-bottom: 12px;
         }
 
@@ -75,16 +81,16 @@
 
         .volume-box { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-main); }
 
-        .btn-sos { background: var(--danger-red); border: none; margin-top: 5px; }
-        .btn-sos:hover { background: #dc2626; }
-        
-        .btn-action { background: #1e293b; color: var(--text-main); border: 1px solid var(--border-color); }
+        .btn-action { background: #1e293b; color: var(--text-main); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; width: 100%; transition: 0.2s; }
         .btn-action:hover { background: #334155; }
 
-        .btn-mic-on { background: var(--success-green); color: white; border: none; }
-        .btn-mic-off { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; }
-        .btn-speaker-on { background: var(--primary-blue); color: white; border: none; }
-        .btn-speaker-off { background: #1e293b; color: var(--text-muted); border: 1px solid var(--border-color); }
+        .btn-sos { background: var(--danger-red); border: none; margin-top: 5px; color: white; padding: 12px; border-radius: 8px; font-weight: bold; width: 100%; cursor: pointer; }
+        .btn-sos:hover { background: #dc2626; }
+        
+        .btn-mic-on { background: var(--success-green); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-mic-off { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-speaker-on { background: var(--primary-blue); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-speaker-off { background: #1e293b; color: var(--text-muted); border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
 
         .msg-fab {
             position: fixed; bottom: 25px; left: 25px;
@@ -106,7 +112,7 @@
             justify-content: center; align-items: center;
         }
         .msg-modal-content {
-            background: var(--panel-bg); border: 1px solid var(--border-color);
+            background: var(--bg-deep); border: 1px solid var(--border-color);
             width: 90%; max-width: 440px; padding: 25px; display: flex; flex-direction: column; border-radius: 12px;
         }
         .messages-list {
@@ -138,7 +144,7 @@
                 <input type="text" id="api-key-input" placeholder="Alpha 1">
             </div>
             <button class="btn" onclick="login()">چوونەژوورەوە 🔑</button>
-            <div id="login-error" style="color:#fca5a5; font-size:12px; margin-top:10px;"></div>
+            <div id="login-error" style="color:#fca5a5; font-size:12px; margin-top:10px; display:none;">کلیلی هەڵەیە!</div>
         </div>
     </div>
 
@@ -156,8 +162,8 @@
         <div id="map"></div>
 
         <div class="radio-controls-grid">
-            <button class="btn btn-mic-off" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ مایک: OFF</button>
-            <button class="btn btn-speaker-on" id="speakerToggleBtn" onclick="toggleSpeaker()">🔊 گوێگرتن: ON</button>
+            <button class="btn-mic-off" id="micToggleBtn" onclick="toggleMicrophone()">🎙️ مایک: OFF</button>
+            <button class="btn-speaker-on" id="speakerToggleBtn" onclick="toggleSpeaker()">🔊 گوێگرتن: ON</button>
         </div>
 
         <div class="panel-box volume-box">
@@ -166,11 +172,11 @@
         </div>
 
         <div class="controls-grid">
-            <button class="btn btn-action" onclick="centerOnMe()">🧭 شوێنی من</button>
-            <button class="btn btn-action" style="border-color:var(--success-green); color:var(--success-green);" onclick="startGPS()">📡 دەستپێکردنی GPS</button>
+            <button class="btn-action" style="color:#a855f7; border-color:#8b5cf6;" onclick="centerOnMe()">🧭 شوێنی من</button>
+            <button class="btn-action" style="color:#10b981; border-color:#10b981;" onclick="startGPS()">📡 دەستپێکردنی GPS</button>
         </div>
 
-        <button class="btn btn-sos" onclick="sendSOS()">🚨 ناردنی نیشانەی مەترسی بەپەلە (SOS)</button>
+        <button class="btn-sos" onclick="sendSOS()">🚨 ناردنی نیشانەی مەترسی بەپەلە (SOS)</button>
         <p id="statusText" class="status-msg"></p>
     </div>
 
@@ -192,26 +198,15 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/mgrs@1.0.0/dist/mgrs.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mgrs/1.0.0/mgrs.min.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
     <script>
-        // 🌟 گەرچی کتێبخانەی MGRS کێشەی هەبێت سیستەم ناوەستێت
+        // 🌟 دڵنیابوون لەوەی MGRS هەمیشە کار دەکات تەنانەت ئەگەر ئینتەرنێت لاواز بێت
         if (typeof mgrs === 'undefined') {
-            window.mgrs = { forward: function() { return "OFFLINE"; } };
-            console.warn("MGRS library could not load. Using fallback.");
+            window.mgrs = { forward: function() { return "لۆد نەبوو"; } };
+            console.warn("MGRS Fallback");
         }
-
-        async function requestPermissions() {
-            try {
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        (pos) => console.log("Location allowed"),
-                        (err) => console.warn("Location denied")
-                    );
-                }
-            } catch (err) {}
-        }
-        window.onload = requestPermissions;
 
         function login() {
             const key = document.getElementById('api-key-input').value.trim();
@@ -244,10 +239,12 @@
                 document.getElementById('unit-name-display').innerText = currentUnitName;
                 
                 initMap();
-                requestPermissions();
+                // پێویست ناکات داوای مۆڵەت بکەین تا بەکارهێنەر خۆی GPS داناگرێت
                 initWebRTC(); 
             } else {
-                document.getElementById('login-error').innerText = res.message || 'کلیلی سەربازی هەڵەیە!';
+                let errEl = document.getElementById('login-error');
+                errEl.style.display = 'block';
+                errEl.innerText = res.message || 'کلیلی سەربازی هەڵەیە!';
             }
         });
 
@@ -281,7 +278,10 @@
         });
 
         function startGPS() {
-            if (!navigator.geolocation) return;
+            if (!navigator.geolocation) {
+                alert("خزمەتگوزاری GPS بەردەست نییە لەسەر ئەم ئامێرە.");
+                return;
+            }
             document.getElementById('statusText').innerText = "پەیوەندی لەگەڵ ژووری ئۆپەراسیۆن چالاکە...";
 
             if (watchId) navigator.geolocation.clearWatch(watchId);
@@ -296,16 +296,12 @@
                 let lon = position.coords.longitude;
                 let heading = position.coords.heading || 0;
 
-                if (accuracy > 100) {
-                    displayEl.innerText = `⚠️ سیگناڵ لاوازە (${Math.round(accuracy)}م)...`;
-                }
-
-                // 🌟 چارەسەری MGRS کە وەک ژمارە دەینێرێت
+                // چارەسەری MGRS کە وەک ژمارە دەینێرێت
                 try {
                     currentMGRS = window.mgrs.forward([Number(lon), Number(lat)], 5);
                     displayEl.innerText = `📍 MGRS: ${currentMGRS}`;
                 } catch(e) {
-                    displayEl.innerText = `📍 MGRS: CALC_ERROR`;
+                    displayEl.innerText = `📍 MGRS: ERROR`;
                 }
 
                 // 🌟 ئایکۆنی کڵاوی سەربازی (🪖) بۆ ئەلفا خۆی
@@ -325,39 +321,24 @@
                     id: currentUnitName, lat: lat, lon: lon, heading: heading, status: 'ئامادەباش', lastSeen: Date.now()
                 });
 
-                fetchWeather(lat, lon);
-            }, (error) => {
-                document.getElementById('statusText').innerText = 'هەڵە لە وەرگرتنی GPS!';
-            }, tacticalOptions);
-        }
-
-        function fetchWeather(lat, lon) {
-            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`)
+                // هێنانی کەشوهەوا
+                fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`)
                 .then(r => r.json())
                 .then(data => {
                     if (data && data.current_weather) {
                         let temp = Math.round(data.current_weather.temperature);
-                        let wind = data.current_weather.windspeed;
-                        let code = data.current_weather.weathercode;
-                        
-                        document.getElementById('weather-info').innerText = `🌤️ ${temp}°C | 💨 ${wind} km/h`;
-
-                        let alertMsg = "";
-                        if (code >= 61 && code <= 65) alertMsg = "⚠️ هۆشداری کەشوهەوا: باران بارینی بەلێزمە پێشبینی دەکرێت لە ناوچەکەتدا!";
-                        else if (code >= 71 && code <= 75) alertMsg = "❄️ هۆشداری کەشوهەوا: بەفر بارین هەیە لە ناوچەکەتدا!";
-                        else if (code >= 95) alertMsg = "⚡ هۆشداری کەشوهەوا: مەترسی بروسکە و گەردەلوول هەیە!";
-                        else if (wind > 40) alertMsg = `🌪️ هۆشداری: ڕەشەبای بەهێز بە خێرایی (${wind} km/h) هەیە!`;
-
-                        if (alertMsg !== "" && !weatherAlertShown) {
-                            addMessageToInbox('🤖 سیستەمی زیرەک (AI)', alertMsg, 'sos');
-                            weatherAlertShown = true; 
-                        }
+                        document.getElementById('weather-info').innerText = `🌤️ ${temp}°C`;
                     }
                 }).catch(() => {});
+
+            }, (error) => {
+                document.getElementById('statusText').innerText = 'تکایە لۆکەیشن (GPS) لە مۆبایلەکەت بکەرەوە!';
+            }, tacticalOptions);
         }
 
         function centerOnMe() {
             if (userMarker) { map.setView(userMarker.getLatLng(), 17); }
+            else { alert("سەرەتا GPS چالاک بکە!"); }
         }
 
         async function initWebRTC() {
@@ -371,17 +352,17 @@
         }
 
         function toggleMicrophone() {
-            if (!localAudioStream) { alert("مایک ئامادە نییە، تکایە ڕێگەپێدان بدە!"); return; }
+            if (!localAudioStream) { alert("مایک ئامادە نییە، تکایە ڕێگەپێدان بدە لە وێبگەڕەکەت!"); return; }
             micActive = !micActive;
             localAudioStream.getAudioTracks().forEach(t => t.enabled = micActive);
             
             const micBtn = document.getElementById('micToggleBtn');
             if (micActive) {
                 micBtn.innerText = "🎙️ مایک: ON";
-                micBtn.className = "btn btn-mic-on";
+                micBtn.className = "btn-mic-on";
             } else {
                 micBtn.innerText = "🎙️ مایک: OFF";
-                micBtn.className = "btn btn-mic-off";
+                micBtn.className = "btn-mic-off";
             }
         }
 
@@ -390,11 +371,11 @@
             const spkBtn = document.getElementById('speakerToggleBtn');
             if (speakerActive) {
                 spkBtn.innerText = "🔊 گوێگرتن: ON";
-                spkBtn.className = "btn btn-speaker-on";
+                spkBtn.className = "btn-speaker-on";
                 Object.values(remoteAudioElements).forEach(a => a.muted = false);
             } else {
                 spkBtn.innerText = "🔇 گوێگرتن: OFF";
-                spkBtn.className = "btn btn-speaker-off";
+                spkBtn.className = "btn-speaker-off";
                 Object.values(remoteAudioElements).forEach(a => a.muted = true);
             }
         }
@@ -469,6 +450,11 @@
         function sendSOS() {
             let lat = userMarker ? userMarker.getLatLng().lat : 0;
             let lon = userMarker ? userMarker.getLatLng().lng : 0;
+
+            if(lat === 0 && lon === 0) {
+                alert("تکایە سەرەتا GPS چالاک بکە بۆ ناردنی شوێنەکەت.");
+                return;
+            }
 
             socket.emit('updateLocation', { id: currentUnitName, lat: lat, lon: lon, heading: 0, status: 'SOS', lastSeen: Date.now() });
             socket.emit('sosAlert', { sender: currentUnitName, time: new Date().toLocaleTimeString() });
